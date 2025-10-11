@@ -6,15 +6,15 @@ const CONFIG = {
   centerX: 1000,
   centerY: 1000,
   domainRadii: {
-    'teaching-learning': 200,
-    'equity-access': 280,
-    'curriculum-reform': 360,
-    'education-society': 440,
-    'technology-digital': 520,
-    'investment-governance': 600,
-    'teacher-empowerment': 680
+    'teaching-learning': 150,
+    'equity-access': 200,
+    'curriculum-reform': 250,
+    'education-society': 300,
+    'technology-digital': 350,
+    'investment-governance': 400,
+    'teacher-empowerment': 450
   },
-  scanHitRadius: 800, // This is the radius of the outermost ring
+  scanHitRadius: 550, // This is the radius of the outermost ring
   scanHitLabelOffsetFromRing: 15, // Consistent spacing (10px padding + 5px for half font size)
   ringColor: '#d1d5db',
   ringWidth: 1.5,
@@ -193,32 +193,104 @@ function RadialScanChart() {
             className="transition-all duration-300"
           />
 
-          {/* Domain labels positioned at the bottom center (180 degrees) */}
-          {DOMAIN_LABELS.map((domain) => {
-            const radius = CONFIG.domainRadii[domain.id];
+          {/* Domain labels positioned between rings at the bottom center (180 degrees) */}
+          {DOMAIN_LABELS.map((domain, index) => {
+            // Calculate the midpoint between the previous ring and this domain's ring
+            let previousRadius;
+            if (index === 0) {
+              // First label: between black center circle (50px radius) and first ring
+              previousRadius = 50;
+            } else {
+              // Use the previous domain's radius
+              const previousDomainId = DOMAIN_LABELS[index - 1].id;
+              previousRadius = CONFIG.domainRadii[previousDomainId];
+            }
+            
+            const currentRadius = CONFIG.domainRadii[domain.id];
+            
+            // Position label at the midpoint between previous ring and current ring
+            const labelRadius = previousRadius + (currentRadius - previousRadius) / 2;
+            
             const position = polarToCartesian(
               CONFIG.centerX, 
               CONFIG.centerY, 
-              radius - 5, 
+              labelRadius, 
               180
             );
             
+            // Split long labels into multiple lines
+            const splitLabel = domain.label.split(' ');
+            const midPoint = Math.ceil(splitLabel.length / 2);
+            const line1 = splitLabel.slice(0, midPoint).join(' ');
+            const line2 = splitLabel.slice(midPoint).join(' ');
+            
             return (
-              <text
-                key={`label-${domain.id}`}
-                x={position.x}
-                y={position.y}
-                fontSize="11"
-                fill="#374151"
-                textAnchor="middle"
-                className="cursor-pointer transition-all duration-300 select-none hover:fill-gray-800 hover:font-semibold"
-                onMouseEnter={() => setHoveredDomain(domain.id)}
-                onMouseLeave={() => setHoveredDomain(null)}
-              >
-                {domain.label}
-              </text>
+              <g key={`label-${domain.id}`}>
+                <text
+                  x={position.x}
+                  y={position.y - 3}
+                  fontSize="10"
+                  fill="#374151"
+                  textAnchor="middle"
+                  className="cursor-pointer transition-all duration-300 select-none hover:fill-gray-800 hover:font-semibold"
+                  onMouseEnter={() => setHoveredDomain(domain.id)}
+                  onMouseLeave={() => setHoveredDomain(null)}
+                >
+                  {line1}
+                </text>
+                {line2 && (
+                  <text
+                    x={position.x}
+                    y={position.y + 8}
+                    fontSize="10"
+                    fill="#374151"
+                    textAnchor="middle"
+                    className="cursor-pointer transition-all duration-300 select-none hover:fill-gray-800 hover:font-semibold"
+                    onMouseEnter={() => setHoveredDomain(domain.id)}
+                    onMouseLeave={() => setHoveredDomain(null)}
+                  >
+                    {line2}
+                  </text>
+                )}
+              </g>
             );
           })}
+
+          {/* Domain dots - show which domains each scan hit belongs to */}
+          <g id="domain-dots">
+            {scanHits.map((scanHit, index) => {
+              // Calculate the same angle as the scan hit label
+              const angle = (index / scanHits.length) * 360;
+              
+              // Create a dot for each domain this scan hit belongs to
+              return scanHit.domains.map((domainId) => {
+                // Get the radius for this domain
+                const domainRadius = CONFIG.domainRadii[domainId];
+                
+                // Calculate position at the domain's radius and scan hit's angle
+                const position = polarToCartesian(
+                  CONFIG.centerX,
+                  CONFIG.centerY,
+                  domainRadius,
+                  angle
+                );
+                
+                return (
+                  <circle
+                    key={`dot-${scanHit.id || index}-${domainId}`}
+                    cx={position.x}
+                    cy={position.y}
+                    r={5}
+                    fill="#374151"
+                    stroke="white"
+                    strokeWidth={1.5}
+                    opacity={0.8}
+                    className="cursor-pointer transition-opacity duration-200 hover:opacity-100"
+                  />
+                );
+              });
+            })}
+          </g>
 
           {/* Scan hit labels around the outer perimeter */}
           <g id="scan-hit-labels">
