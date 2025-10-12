@@ -109,6 +109,7 @@ function RadialScanChart() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [hoveredDomain, setHoveredDomain] = useState(null);
+  const [selectedDomain, setSelectedDomain] = useState(null);
 
   useEffect(() => {
     const loadData = async () => {
@@ -154,12 +155,38 @@ function RadialScanChart() {
     );
   }
 
+  // Helper function to handle domain selection
+  const handleDomainClick = (domainId) => {
+    if (selectedDomain === domainId) {
+      // If clicking the same domain, deselect it
+      setSelectedDomain(null);
+    } else {
+      // Otherwise, select the new domain
+      setSelectedDomain(domainId);
+    }
+  };
+
+  // Helper function to clear selection
+  const clearSelection = () => {
+    setSelectedDomain(null);
+  };
+
   return (
-    <div className="w-full max-w-[2000px] mx-auto p-8 bg-gray-50 rounded-lg">
+    <div className="w-full max-w-[2000px] mx-auto p-8 bg-gray-50 rounded-lg relative">
       <div className="text-center mb-8">
         <h1 className="text-3xl font-bold text-gray-800 mb-2">Futures Scanning Data</h1>
         <p className="text-base text-gray-600">Interactive radial visualization of education domains</p>
       </div>
+      
+      {/* Clear Selection Button */}
+      {selectedDomain && (
+        <button
+          onClick={clearSelection}
+          className="absolute top-8 right-8 bg-gray-700 hover:bg-gray-800 text-white px-4 py-2 rounded-lg transition-colors duration-200 font-medium"
+        >
+          Clear Selection
+        </button>
+      )}
       
       <div className="bg-white rounded-lg p-8 shadow-md flex justify-center items-center">
         <svg 
@@ -167,9 +194,47 @@ function RadialScanChart() {
           className="max-w-full h-auto"
           xmlns="http://www.w3.org/2000/svg"
         >
+          {/* Invisible clickable areas for domain rings */}
+          <g id="domain-click-areas">
+            {DOMAIN_LABELS.map((domain) => {
+              const radius = CONFIG.domainRadii[domain.id];
+              return (
+                <circle
+                  key={`click-${domain.id}`}
+                  cx={CONFIG.centerX}
+                  cy={CONFIG.centerY}
+                  r={radius}
+                  fill="none"
+                  stroke="transparent"
+                  strokeWidth="30"
+                  className="cursor-pointer"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDomainClick(domain.id);
+                  }}
+                />
+              );
+            })}
+          </g>
+
           {/* Concentric circles for each domain */}
           {DOMAIN_LABELS.map((domain) => {
             const radius = CONFIG.domainRadii[domain.id];
+            const isSelected = selectedDomain === domain.id;
+            const isOtherSelected = selectedDomain && selectedDomain !== domain.id;
+            
+            let strokeColor = CONFIG.ringColor;
+            let strokeWidth = CONFIG.ringWidth;
+            let opacity = 1.0;
+            
+            if (isSelected) {
+              strokeColor = '#374151';
+              strokeWidth = 3;
+              opacity = 1.0;
+            } else if (isOtherSelected) {
+              opacity = 0.3;
+            }
+            
             return (
               <circle
                 key={domain.id}
@@ -177,8 +242,9 @@ function RadialScanChart() {
                 cy={CONFIG.centerY}
                 r={radius}
                 fill="none"
-                stroke={CONFIG.ringColor}
-                strokeWidth={CONFIG.ringWidth}
+                stroke={strokeColor}
+                strokeWidth={strokeWidth}
+                opacity={opacity}
                 className="transition-all duration-300"
               />
             );
@@ -224,6 +290,20 @@ function RadialScanChart() {
             const line1 = splitLabel.slice(0, midPoint).join(' ');
             const line2 = splitLabel.slice(midPoint).join(' ');
             
+            // Determine visual state based on selection
+            const isSelected = selectedDomain === domain.id;
+            const isOtherSelected = selectedDomain && selectedDomain !== domain.id;
+            
+            let opacity = 1.0;
+            let fontWeight = 'normal';
+            
+            if (isSelected) {
+              opacity = 1.0;
+              fontWeight = 'bold';
+            } else if (isOtherSelected) {
+              opacity = 0.3;
+            }
+            
             return (
               <g key={`label-${domain.id}`}>
                 <text
@@ -232,9 +312,15 @@ function RadialScanChart() {
                   fontSize="10"
                   fill="#374151"
                   textAnchor="middle"
+                  opacity={opacity}
+                  fontWeight={fontWeight}
                   className="cursor-pointer transition-all duration-300 select-none hover:fill-gray-800 hover:font-semibold"
                   onMouseEnter={() => setHoveredDomain(domain.id)}
                   onMouseLeave={() => setHoveredDomain(null)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDomainClick(domain.id);
+                  }}
                 >
                   {line1}
                 </text>
@@ -245,9 +331,15 @@ function RadialScanChart() {
                     fontSize="10"
                     fill="#374151"
                     textAnchor="middle"
+                    opacity={opacity}
+                    fontWeight={fontWeight}
                     className="cursor-pointer transition-all duration-300 select-none hover:fill-gray-800 hover:font-semibold"
                     onMouseEnter={() => setHoveredDomain(domain.id)}
                     onMouseLeave={() => setHoveredDomain(null)}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDomainClick(domain.id);
+                    }}
                   >
                     {line2}
                   </text>
@@ -275,6 +367,14 @@ function RadialScanChart() {
                   angle
                 );
                 
+                // Determine opacity based on selection
+                let opacity = 0.8;
+                if (selectedDomain) {
+                  // Show dots for the selected domain ring at full opacity
+                  // Dim dots for other domain rings
+                  opacity = domainId === selectedDomain ? 0.8 : 0.2;
+                }
+                
                 return (
                   <circle
                     key={`dot-${scanHit.id || index}-${domainId}`}
@@ -284,8 +384,12 @@ function RadialScanChart() {
                     fill="#374151"
                     stroke="white"
                     strokeWidth={1.5}
-                    opacity={0.8}
+                    opacity={opacity}
                     className="cursor-pointer transition-opacity duration-200 hover:opacity-100"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDomainClick(domainId);
+                    }}
                   />
                 );
               });
@@ -331,6 +435,13 @@ function RadialScanChart() {
                 ? cleanTitle.substring(0, 52) + "..."
                 : cleanTitle;
               
+              // Determine opacity based on selection
+              let opacity = 1.0;
+              if (selectedDomain) {
+                // If a domain is selected, only show labels for scan hits that belong to that domain
+                opacity = scanHit.domains.includes(selectedDomain) ? 1.0 : 0.2;
+              }
+              
               return (
                 <text
                   key={`scan-hit-${scanHit.id || index}`}
@@ -340,8 +451,16 @@ function RadialScanChart() {
                   fill="#4B5563"
                   textAnchor={textAnchor}
                   dominantBaseline="middle"
+                  opacity={opacity}
                   transform={`rotate(${rotation}, ${position.x}, ${position.y})`}
                   className="cursor-pointer transition-all duration-200 select-none hover:fill-gray-800 hover:font-semibold"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    // If the scan hit has domains, select the first one
+                    if (scanHit.domains && scanHit.domains.length > 0) {
+                      handleDomainClick(scanHit.domains[0]);
+                    }
+                  }}
                 >
                   {truncatedTitle}
                 </text>
@@ -351,11 +470,18 @@ function RadialScanChart() {
         </svg>
       </div>
 
-      {hoveredDomain && (
+      {selectedDomain && (
+        <div className="mt-6 p-4 bg-blue-100 rounded-md text-center text-sm text-blue-800 font-medium">
+          Showing scan hits for: <strong>{DOMAIN_LABELS.find(d => d.id === selectedDomain)?.label}</strong>
+        </div>
+      )}
+      
+      {hoveredDomain && !selectedDomain && (
         <div className="mt-6 p-4 bg-gray-200 rounded-md text-center text-sm text-gray-700 font-medium">
           Currently viewing: {DOMAIN_LABELS.find(d => d.id === hoveredDomain)?.label}
         </div>
       )}
+      
     </div>
   );
 }
