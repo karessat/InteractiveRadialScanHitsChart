@@ -46,10 +46,56 @@ const AFRICA_SILHOUETTE = "M 0,-50 L 8,-48 L 15,-44 L 20,-38 L 23,-30 L 24,-22 L
 // Utility function to convert polar coordinates to cartesian
 const polarToCartesian = (centerX, centerY, radius, angleInDegrees) => {
   const angleInRadians = (angleInDegrees - 90) * Math.PI / 180.0;
+  // Reduce radius by 75 to bring text closer to circle uniformly
+  const adjustedRadius = radius - 75;
   return {
-    x: centerX + (radius * Math.cos(angleInRadians)),
-    y: centerY + (radius * Math.sin(angleInRadians))
+    x: centerX + (adjustedRadius * Math.cos(angleInRadians)),
+    y: centerY + (adjustedRadius * Math.sin(angleInRadians))
   };
+};
+
+// Helper function for optimal text positioning
+const positionRadialText = (text, angle, baseRadius, textAnchor = 'middle') => {
+  // Calculate position based on text anchor
+  let radius = baseRadius;
+  
+  // For 'start' anchor, we need to account for text extending outward
+  // For 'end' anchor, we need to account for text extending inward
+  // For 'middle', we use the base radius
+  
+  const position = polarToCartesian(
+    CONFIG.centerX,
+    CONFIG.centerY,
+    radius,
+    angle
+  );
+  
+  return { position, textAnchor };
+};
+
+const getOptimalTextAnchor = (angle) => {
+  const normalizedAngle = ((angle % 360) + 360) % 360;
+  
+  // For radial text flowing outward from circle:
+  if (normalizedAngle < 90 || normalizedAngle > 270) {
+    return 'end';    // Right side - anchor at inner edge, text flows outward
+  } else {
+    return 'start';  // Left side - anchor at inner edge, text flows outward
+  }
+};
+
+const getTextTransform = (angle, x, y) => {
+  const degrees = angle;
+  
+  // ALL text should be perpendicular (radial) first
+  let rotation = degrees + 90; // This makes text perpendicular to circle
+  
+  // Then flip left side for readability
+  if (degrees > 90 && degrees < 270) {
+    rotation += 180; // Flip left side text
+  }
+  
+  return `rotate(${rotation}, ${x}, ${y})`;
 };
 
 // Data fetching function
@@ -402,43 +448,29 @@ function RadialScanChart() {
               // Step 1: Calculate angle for even spacing
               const angle = (index / scanHits.length) * 360;
               
-              // Step 2: Calculate position so inner edge is always one space from outer ring
-              const desiredGap = 10; // One space (10px) gap from outer ring
-              const innerEdgeRadius = CONFIG.scanHitRadius + desiredGap;
-              const textCenterRadius = innerEdgeRadius + 5; // Add half font size to position text center
+              // Step 2: Calculate optimal text anchor based on position
+              const textAnchor = getOptimalTextAnchor(angle);
               
-              const position = polarToCartesian(
-                CONFIG.centerX,
-                CONFIG.centerY,
-                textCenterRadius,
-                angle
+              // Step 3: Calculate base position with consistent gap
+              const desiredGap = 3; // Small gap - about half a character width from outer ring
+              const baseRadius = CONFIG.scanHitRadius + desiredGap;
+              
+              const { position } = positionRadialText(
+                scanHit.title, 
+                angle, 
+                baseRadius, 
+                textAnchor
               );
               
-              // Step 3: Handle text rotation to keep text right-side-up
-              let rotation;
-              let textAnchor = "middle"; // Center the text on the position
-              
-              // Calculate base rotation (perpendicular to radius)
-              rotation = angle + 90;
-              
-              // Normalize rotation to keep text right-side-up (between -90 and 90 degrees)
-              while (rotation > 90) {
-                rotation -= 180;
-              }
-              while (rotation < -90) {
-                rotation += 180;
-              }
-              
-              // Step 4: Truncate title to 50-55 characters and trim whitespace
-              const cleanTitle = scanHit.title.trim(); // Remove leading/trailing spaces
+              // Step 4: Truncate title
+              const cleanTitle = scanHit.title.trim();
               const truncatedTitle = cleanTitle.length > 55 
                 ? cleanTitle.substring(0, 52) + "..."
                 : cleanTitle;
               
-              // Determine opacity based on selection
+              // Step 5: Determine opacity based on selection
               let opacity = 1.0;
               if (selectedDomain) {
-                // If a domain is selected, only show labels for scan hits that belong to that domain
                 opacity = scanHit.domains.includes(selectedDomain) ? 1.0 : 0.2;
               }
               
@@ -452,11 +484,10 @@ function RadialScanChart() {
                   textAnchor={textAnchor}
                   dominantBaseline="middle"
                   opacity={opacity}
-                  transform={`rotate(${rotation}, ${position.x}, ${position.y})`}
+                  transform={getTextTransform(angle, position.x, position.y)}
                   className="cursor-pointer transition-all duration-200 select-none hover:fill-gray-800 hover:font-semibold"
                   onClick={(e) => {
                     e.stopPropagation();
-                    // If the scan hit has domains, select the first one
                     if (scanHit.domains && scanHit.domains.length > 0) {
                       handleDomainClick(scanHit.domains[0]);
                     }
