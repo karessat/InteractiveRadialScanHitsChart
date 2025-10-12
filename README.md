@@ -1,14 +1,17 @@
 # Interactive Radial Scan Hits Chart
 
-An interactive radial chart visualization built with React and SVG, designed to display scan hit data from AITable.
+An interactive radial chart visualization built with React and SVG, designed to display scan hit data from AITable. Features advanced text positioning algorithms for uniform spacing and optimized performance.
 
-## Features
+## ✨ Features
 
-- 🎯 Custom-built radial chart using pure SVG (no chart libraries)
-- ⚡ Built with React + Vite for fast development
-- 🔄 Real-time data integration with AITable API
-- 🎨 Interactive visualizations with hover and click events
-- 🪶 Minimal dependencies, lean codebase
+- 🎯 **Custom-built radial chart** using pure SVG (no external chart libraries)
+- ⚡ **High Performance** - Optimized with React hooks, memoization, and efficient rendering
+- 🔄 **Real-time data integration** with AITable API
+- 🎨 **Interactive visualizations** with hover effects, click events, and smooth transitions
+- 📐 **Precise text positioning** - Advanced algorithms for uniform spacing around the circle
+- 🪶 **Minimal dependencies** - Lean, efficient codebase
+- ♿ **Accessible design** - Keyboard navigation and screen reader support
+- 📱 **Responsive layout** - Works on all screen sizes
 
 ## Setup
 
@@ -20,7 +23,7 @@ An interactive radial chart visualization built with React and SVG, designed to 
 2. **Configure environment variables:**
    - Copy `.env.example` to `.env`
    - Add your AITable credentials:
-     ```
+     ```env
      VITE_AITABLE_TOKEN=your_token_here
      VITE_SCAN_HITS_DATASHEET_ID=your_datasheet_id_here
      ```
@@ -44,26 +47,84 @@ Preview the production build:
 npm run preview
 ```
 
-## Project Structure
+## 🛠️ Development Commands
+
+### Code Quality
+```bash
+# Lint code
+npm run lint
+
+# Fix linting issues automatically
+npm run lint:fix
+
+# Format code with Prettier
+npm run format
+
+# Check code formatting
+npm run format:check
+```
+
+### Build & Cleanup
+```bash
+# Clean build artifacts and cache
+npm run clean
+
+# Build for production with optimizations
+npm run build
+```
+
+## 🏗️ Project Structure
 
 ```
 ├── src/
-│   ├── App.jsx          # Main application component
-│   ├── main.jsx         # Application entry point
-│   ├── App.css          # Application styles
-│   └── index.css        # Global styles
-├── public/              # Static assets
-├── index.html           # HTML entry point
-└── vite.config.js       # Vite configuration
+│   ├── App.jsx              # Main application component
+│   ├── main.jsx             # Application entry point
+│   ├── RadialScanChart.jsx  # Main chart component (optimized)
+│   └── index.css            # Global styles with Tailwind
+├── graphics/
+│   └── mapofafrica.png      # Central Africa map image
+├── public/
+│   └── vite.svg             # Vite logo
+├── .env                     # Environment variables (create from .env.example)
+├── .env.example             # Environment template
+├── index.html               # HTML entry point
+├── package.json             # Dependencies and scripts
+├── tailwind.config.js       # Tailwind CSS configuration
+├── vite.config.js           # Vite build configuration
+└── README.md                # This file
 ```
 
-## Technology Stack
+## 🛠️ Technology Stack
 
-- **React 18** - UI framework
-- **Vite** - Build tool and dev server
-- **Tailwind CSS** - Utility-first CSS framework
-- **SVG** - For chart rendering (no external chart libraries)
-- **AITable API** - Data source
+- **React 18** - Modern UI framework with hooks and concurrent features
+- **Vite** - Lightning-fast build tool and dev server
+- **Tailwind CSS** - Utility-first CSS framework for rapid styling
+- **SVG** - Pure SVG rendering for crisp, scalable charts
+- **Axios** - HTTP client for API requests
+- **AITable API** - Real-time data source integration
+
+## 🚀 Performance Optimizations
+
+This project includes several performance optimizations:
+
+- **React.useCallback** - Prevents unnecessary re-renders of event handlers
+- **React.useMemo** - Memoizes expensive calculations
+- **Dynamic text positioning** - Advanced algorithms for uniform spacing
+- **Two-pass rendering** - Measures and adjusts text positioning for precision
+- **Efficient state management** - Optimized state updates and transitions
+
+## 🎨 Key Features Explained
+
+### Dynamic Text Positioning
+The chart uses advanced algorithms to ensure all scan hit labels are uniformly spaced around the outer circle:
+- **Continuous angle-based adjustments** - Smooth positioning across all quadrants
+- **Bounding box measurement** - Precise text dimension calculation
+- **Micro-adjustments** - Fine-tuned spacing for perfect visual alignment
+
+### Interactive Domain Filtering
+- Click any domain ring to filter scan hits
+- Hover effects for visual feedback
+- Clear selection button for easy navigation
 
 ## License
 

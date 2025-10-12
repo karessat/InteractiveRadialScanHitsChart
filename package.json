@@ -1,12 +1,33 @@
 {
   "name": "interactive-radial-scan-hits-chart",
-  "private": true,
-  "version": "0.0.1",
+  "version": "2.0.0",
+  "description": "An interactive radial chart visualization built with React and SVG, designed to display scan hit data from AITable with advanced text positioning algorithms.",
   "type": "module",
+  "keywords": [
+    "react",
+    "svg",
+    "visualization",
+    "radial-chart",
+    "data-visualization",
+    "interactive",
+    "aitable",
+    "education",
+    "futures-scanning",
+    "unicef"
+  ],
+  "author": "UNICEF/Radial Interactive Team",
+  "license": "MIT",
+  "private": true,
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "lint": "eslint . --ext js,jsx --report-unused-disable-directives --max-warnings 0",
+    "lint:fix": "eslint . --ext js,jsx --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "clean": "rm -rf dist node_modules/.vite",
+    "type-check": "echo 'TypeScript not configured' && exit 0"
   },
   "dependencies": {
     "axios": "^1.12.2",
@@ -17,8 +38,25 @@
     "@tailwindcss/postcss": "^4.1.14",
     "@vitejs/plugin-react": "^4.3.4",
     "autoprefixer": "^10.4.21",
+    "eslint": "^8.57.0",
+    "eslint-plugin-react": "^7.34.1",
+    "eslint-plugin-react-hooks": "^4.6.0",
+    "eslint-plugin-react-refresh": "^0.4.5",
     "postcss": "^8.5.6",
+    "prettier": "^3.2.5",
     "tailwindcss": "^4.1.14",
     "vite": "^6.0.11"
-  }
+  },
+  "engines": {
+    "node": ">=16.0.0",
+    "npm": ">=8.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/unicef/interactive-radial-scan-hits-chart.git"
+  },
+  "bugs": {
+    "url": "https://github.com/unicef/interactive-radial-scan-hits-chart/issues"
+  },
+  "homepage": "https://github.com/unicef/interactive-radial-scan-hits-chart#readme"
 }

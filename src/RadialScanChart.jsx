@@ -1,4 +1,18 @@
+/**
+ * @fileoverview Interactive Radial Scan Hits Chart Component
+ * 
+ * A React component that displays an interactive radial visualization of education
+ * domain scan hits data from AITable. Features dynamic text positioning, domain
+ * filtering, and real-time data integration.
+ * 
+ * @author UNICEF/Radial Interactive Team
+ * @version 2.0.0
+ */
+
+// React imports
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+
+// Third-party imports
 import axios from 'axios';
 
 const CONFIG = {
@@ -45,7 +59,14 @@ const DOMAIN_LABELS = [
   { id: 'teacher-empowerment', label: 'Teacher Empowerment' }
 ];
 
-// Utility function to convert polar coordinates to cartesian
+/**
+ * Converts polar coordinates to cartesian coordinates
+ * @param {number} centerX - X coordinate of the center point
+ * @param {number} centerY - Y coordinate of the center point
+ * @param {number} radius - Distance from center
+ * @param {number} angleInDegrees - Angle in degrees (0-360)
+ * @returns {Object} Object with x and y cartesian coordinates
+ */
 const polarToCartesian = (centerX, centerY, radius, angleInDegrees) => {
   const angleInRadians = (angleInDegrees - 90) * Math.PI / 180.0;
   return {
@@ -54,7 +75,14 @@ const polarToCartesian = (centerX, centerY, radius, angleInDegrees) => {
   };
 };
 
-// Utility function to calculate precise text positioning
+/**
+ * Calculates precise text positioning for radial chart labels
+ * Uses continuous angle-based micro-adjustments for uniform spacing
+ * @param {Object} bbox - Text bounding box from getBBox()
+ * @param {number} angle - Angle in degrees (0-360)
+ * @param {number} baseOffset - Base offset from proven positioning approach
+ * @returns {Object} Object with x and y coordinates for text positioning
+ */
 const calculateTextPosition = (bbox, angle, baseOffset = CONFIG.positioning.baseOffset) => {
   const angleInRadians = (angle * Math.PI) / 180;
   const rotationFactor = Math.abs(Math.sin(angleInRadians * 2)); // Double frequency for 360° coverage
@@ -67,7 +95,11 @@ const calculateTextPosition = (bbox, angle, baseOffset = CONFIG.positioning.base
 };
 
 
-// Data fetching function
+/**
+ * Fetches scan hits data from AITable API
+ * @returns {Promise<Array>} Array of raw records from AITable
+ * @throws {Error} If API request fails
+ */
 const fetchScanHits = async () => {
   try {
     const response = await axios.get(
@@ -85,7 +117,11 @@ const fetchScanHits = async () => {
   }
 };
 
-// Data transformation function
+/**
+ * Transforms raw AITable records into structured scan hit objects
+ * @param {Array} records - Raw records from AITable
+ * @returns {Array} Array of transformed scan hit objects
+ */
 const transformData = (records) => {
   return records.map(record => {
     // Get the domain string and split by pipe (|) if multiple domains
@@ -119,7 +155,22 @@ const transformData = (records) => {
   });
 };
 
+/**
+ * Interactive Radial Scan Hits Chart Component
+ * 
+ * Displays an interactive radial visualization of education domain scan hits data.
+ * Features include:
+ * - Dynamic text positioning with uniform spacing around the outer ring
+ * - Interactive domain selection and filtering
+ * - Real-time data fetching from AITable API
+ * - Responsive design with hover effects and transitions
+ * 
+ * @returns {JSX.Element} The rendered radial chart component
+ */
 function RadialScanChart() {
+  // ============================================================================
+  // STATE MANAGEMENT
+  // ============================================================================
   const [scanHits, setScanHits] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -130,7 +181,9 @@ function RadialScanChart() {
   const [labelPositions, setLabelPositions] = useState({});
   const textRefs = useRef({});
 
-  // Optimized event handlers with useCallback to prevent unnecessary re-renders
+  // ============================================================================
+  // OPTIMIZED EVENT HANDLERS & MEMOIZATION
+  // ============================================================================
   const handleDomainClick = useCallback((domainId) => {
     setSelectedDomain(prev => prev === domainId ? null : domainId);
   }, []);
@@ -148,6 +201,9 @@ function RadialScanChart() {
     return hoveredDomain ? DOMAIN_LABELS.find(d => d.id === hoveredDomain)?.label : null;
   }, [hoveredDomain]);
 
+  // ============================================================================
+  // EFFECTS & DATA LOADING
+  // ============================================================================
   useEffect(() => {
     const loadData = async () => {
       try {
@@ -209,6 +265,9 @@ function RadialScanChart() {
     return () => clearTimeout(timeoutId);
   }, [scanHits]);
 
+  // ============================================================================
+  // CONDITIONAL RENDERING
+  // ============================================================================
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen">
@@ -231,6 +290,9 @@ function RadialScanChart() {
     );
   }
 
+  // ============================================================================
+  // MAIN RENDER
+  // ============================================================================
   return (
     <div className="w-full max-w-[2000px] mx-auto p-8 bg-gray-50 rounded-lg relative">
       <div className="text-center mb-8">
