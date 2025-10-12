@@ -1,6 +1,5 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import axios from 'axios';
-import './RadialScanChart.css';
 
 const CONFIG = {
   centerX: 1000,
@@ -15,9 +14,14 @@ const CONFIG = {
     'teacher-empowerment': 450
   },
   scanHitRadius: 550, // This is the radius of the outermost ring
-  scanHitLabelOffsetFromRing: 15, // Consistent spacing (10px padding + 5px for half font size)
   ringColor: '#d1d5db',
   ringWidth: 1.5,
+  positioning: {
+    desiredGap: 3,
+    baseOffset: 75,
+    microAdjustment: 2.5,
+    measurementDelay: 100
+  }
 };
 
 const DOMAIN_NAME_MAPPING = {
@@ -41,8 +45,6 @@ const DOMAIN_LABELS = [
   { id: 'teacher-empowerment', label: 'Teacher Empowerment' }
 ];
 
-const AFRICA_SILHOUETTE = "M 0,-50 L 8,-48 L 15,-44 L 20,-38 L 23,-30 L 24,-22 L 23,-14 L 20,-6 L 15,0 L 8,4 L 0,6 L -8,6 L -15,4 L -20,0 L -23,-6 L -24,-14 L -23,-22 L -20,-30 L -15,-38 L -8,-44 L 0,-50 M 25,8 L 30,12 L 33,18 L 34,25 L 33,32 L 30,38 L 25,42 L 18,44 L 10,44 L 3,42 L -3,38 L -8,32 L -10,25 L -10,18 L -8,12 L -3,8 Z";
-
 // Utility function to convert polar coordinates to cartesian
 const polarToCartesian = (centerX, centerY, radius, angleInDegrees) => {
   const angleInRadians = (angleInDegrees - 90) * Math.PI / 180.0;
@@ -52,15 +54,18 @@ const polarToCartesian = (centerX, centerY, radius, angleInDegrees) => {
   };
 };
 
-// Enhanced polar to cartesian with offset support (your proven approach)
-const polarToCartesianWithOffset = (centerX, centerY, radius, angleInDegrees, offset = 0) => {
-  const angleInRadians = (angleInDegrees - 90) * Math.PI / 180.0;
-  const adjustedRadius = radius - offset; // Your proven approach
-  return {
-    x: centerX + (adjustedRadius * Math.cos(angleInRadians)),
-    y: centerY + (adjustedRadius * Math.sin(angleInRadians))
-  };
+// Utility function to calculate precise text positioning
+const calculateTextPosition = (bbox, angle, baseOffset = CONFIG.positioning.baseOffset) => {
+  const angleInRadians = (angle * Math.PI) / 180;
+  const rotationFactor = Math.abs(Math.sin(angleInRadians * 2)); // Double frequency for 360° coverage
+  const baselineShift = rotationFactor * CONFIG.positioning.microAdjustment;
+  
+  const textHalfWidth = bbox.width / 2;
+  const adjustedRadius = CONFIG.scanHitRadius + CONFIG.positioning.desiredGap - baseOffset + textHalfWidth - baselineShift;
+  
+  return polarToCartesian(CONFIG.centerX, CONFIG.centerY, adjustedRadius, angle);
 };
+
 
 // Data fetching function
 const fetchScanHits = async () => {
@@ -125,6 +130,24 @@ function RadialScanChart() {
   const [labelPositions, setLabelPositions] = useState({});
   const textRefs = useRef({});
 
+  // Optimized event handlers with useCallback to prevent unnecessary re-renders
+  const handleDomainClick = useCallback((domainId) => {
+    setSelectedDomain(prev => prev === domainId ? null : domainId);
+  }, []);
+
+  const clearSelection = useCallback(() => {
+    setSelectedDomain(null);
+  }, []);
+
+  // Memoize domain labels lookup to avoid recalculation on every render
+  const selectedDomainLabel = useMemo(() => {
+    return selectedDomain ? DOMAIN_LABELS.find(d => d.id === selectedDomain)?.label : null;
+  }, [selectedDomain]);
+
+  const hoveredDomainLabel = useMemo(() => {
+    return hoveredDomain ? DOMAIN_LABELS.find(d => d.id === hoveredDomain)?.label : null;
+  }, [hoveredDomain]);
+
   useEffect(() => {
     const loadData = async () => {
       try {
@@ -159,57 +182,21 @@ function RadialScanChart() {
         const textElement = textRefs.current[`text-${index}`];
         if (textElement) {
           try {
-            // Measure actual text dimensions
+            // Measure actual text dimensions and calculate precise position
             const bbox = textElement.getBBox();
             const angle = (index / scanHits.length) * 360;
-            
-            // Determine quadrant-specific behavior
-            const quadrant = Math.floor(angle / 90);
-            
-            // Your proven approach: start with desired gap + your empirical offset
-            const desiredGap = 3;
-            const yourProvenOffset = 75; // From your previous iteration
-            const baseRadius = CONFIG.scanHitRadius + desiredGap;
-            
-            // Quadrant-specific adjustments (since they behave differently)
-            let quadrantMultiplier = 1;
-            switch (quadrant) {
-              case 0: // 0-90 degrees (right side)
-                quadrantMultiplier = 1.0;
-                break;
-              case 1: // 90-180 degrees (bottom)
-                quadrantMultiplier = 1.1;
-                break;
-              case 2: // 180-270 degrees (left side)
-                quadrantMultiplier = 1.0;
-                break;
-              case 3: // 270-360 degrees (top)
-                quadrantMultiplier = 1.1;
-                break;
-            }
-            
-            // Combine your offset with dynamic measurement and quadrant adjustment
-            const textHalfWidth = bbox.width / 2;
-            const adjustedOffset = yourProvenOffset * quadrantMultiplier;
-            const adjustedRadius = baseRadius - adjustedOffset + textHalfWidth;
-            
-            const position = polarToCartesian(
-              CONFIG.centerX,
-              CONFIG.centerY,
-              adjustedRadius,
-              angle
-            );
+            const position = calculateTextPosition(bbox, angle);
             
             newPositions[index] = position;
           } catch (error) {
             // Fallback to original positioning if measurement fails
             const angle = (index / scanHits.length) * 360;
-            const position = polarToCartesianWithOffset(
+            const adjustedRadius = (CONFIG.scanHitRadius + CONFIG.positioning.desiredGap) - CONFIG.positioning.baseOffset;
+            const position = polarToCartesian(
               CONFIG.centerX,
               CONFIG.centerY,
-              CONFIG.scanHitRadius + 3,
-              angle,
-              75
+              adjustedRadius,
+              angle
             );
             newPositions[index] = position;
           }
@@ -217,7 +204,7 @@ function RadialScanChart() {
       });
       
       setLabelPositions(newPositions);
-    }, 100);
+    }, CONFIG.positioning.measurementDelay);
     
     return () => clearTimeout(timeoutId);
   }, [scanHits]);
@@ -243,22 +230,6 @@ function RadialScanChart() {
       </div>
     );
   }
-
-  // Helper function to handle domain selection
-  const handleDomainClick = (domainId) => {
-    if (selectedDomain === domainId) {
-      // If clicking the same domain, deselect it
-      setSelectedDomain(null);
-    } else {
-      // Otherwise, select the new domain
-      setSelectedDomain(domainId);
-    }
-  };
-
-  // Helper function to clear selection
-  const clearSelection = () => {
-    setSelectedDomain(null);
-  };
 
   return (
     <div className="w-full max-w-[2000px] mx-auto p-8 bg-gray-50 rounded-lg relative">
@@ -494,12 +465,11 @@ function RadialScanChart() {
               
               // Step 2: Use calculated position if available, otherwise use initial estimate
               const position = labelPositions[index] || 
-                polarToCartesianWithOffset(
+                polarToCartesian(
                   CONFIG.centerX,
                   CONFIG.centerY,
-                  CONFIG.scanHitRadius + 3,
-                  angle,
-                  75 // Your proven offset
+                  (CONFIG.scanHitRadius + CONFIG.positioning.desiredGap) - CONFIG.positioning.baseOffset,
+                  angle
                 );
               
               // Step 3: Handle text rotation to keep text right-side-up
@@ -558,15 +528,15 @@ function RadialScanChart() {
         </svg>
       </div>
 
-      {selectedDomain && (
+      {selectedDomainLabel && (
         <div className="mt-6 p-4 bg-blue-100 rounded-md text-center text-sm text-blue-800 font-medium">
-          Showing scan hits for: <strong>{DOMAIN_LABELS.find(d => d.id === selectedDomain)?.label}</strong>
+          Showing scan hits for: <strong>{selectedDomainLabel}</strong>
         </div>
       )}
       
-      {hoveredDomain && !selectedDomain && (
+      {hoveredDomainLabel && !selectedDomain && (
         <div className="mt-6 p-4 bg-gray-200 rounded-md text-center text-sm text-gray-700 font-medium">
-          Currently viewing: {DOMAIN_LABELS.find(d => d.id === hoveredDomain)?.label}
+          Currently viewing: {hoveredDomainLabel}
         </div>
       )}
       

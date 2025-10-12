@@ -1,4 +1,3 @@
-import './App.css'
 import RadialScanChart from './RadialScanChart'
 
 function App() {
