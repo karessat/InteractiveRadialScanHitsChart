@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import './RadialScanChart.css';
 
@@ -49,6 +49,16 @@ const polarToCartesian = (centerX, centerY, radius, angleInDegrees) => {
   return {
     x: centerX + (radius * Math.cos(angleInRadians)),
     y: centerY + (radius * Math.sin(angleInRadians))
+  };
+};
+
+// Enhanced polar to cartesian with offset support (your proven approach)
+const polarToCartesianWithOffset = (centerX, centerY, radius, angleInDegrees, offset = 0) => {
+  const angleInRadians = (angleInDegrees - 90) * Math.PI / 180.0;
+  const adjustedRadius = radius - offset; // Your proven approach
+  return {
+    x: centerX + (adjustedRadius * Math.cos(angleInRadians)),
+    y: centerY + (adjustedRadius * Math.sin(angleInRadians))
   };
 };
 
@@ -110,6 +120,10 @@ function RadialScanChart() {
   const [error, setError] = useState(null);
   const [hoveredDomain, setHoveredDomain] = useState(null);
   const [selectedDomain, setSelectedDomain] = useState(null);
+  
+  // State for dynamic positioning
+  const [labelPositions, setLabelPositions] = useState({});
+  const textRefs = useRef({});
 
   useEffect(() => {
     const loadData = async () => {
@@ -132,6 +146,81 @@ function RadialScanChart() {
     
     loadData();
   }, []);
+
+  // Two-pass positioning effect - measure and adjust after initial render
+  useEffect(() => {
+    if (scanHits.length === 0) return;
+    
+    // Small delay to ensure DOM is rendered
+    const timeoutId = setTimeout(() => {
+      const newPositions = {};
+      
+      scanHits.forEach((scanHit, index) => {
+        const textElement = textRefs.current[`text-${index}`];
+        if (textElement) {
+          try {
+            // Measure actual text dimensions
+            const bbox = textElement.getBBox();
+            const angle = (index / scanHits.length) * 360;
+            
+            // Determine quadrant-specific behavior
+            const quadrant = Math.floor(angle / 90);
+            
+            // Your proven approach: start with desired gap + your empirical offset
+            const desiredGap = 3;
+            const yourProvenOffset = 75; // From your previous iteration
+            const baseRadius = CONFIG.scanHitRadius + desiredGap;
+            
+            // Quadrant-specific adjustments (since they behave differently)
+            let quadrantMultiplier = 1;
+            switch (quadrant) {
+              case 0: // 0-90 degrees (right side)
+                quadrantMultiplier = 1.0;
+                break;
+              case 1: // 90-180 degrees (bottom)
+                quadrantMultiplier = 1.1;
+                break;
+              case 2: // 180-270 degrees (left side)
+                quadrantMultiplier = 1.0;
+                break;
+              case 3: // 270-360 degrees (top)
+                quadrantMultiplier = 1.1;
+                break;
+            }
+            
+            // Combine your offset with dynamic measurement and quadrant adjustment
+            const textHalfWidth = bbox.width / 2;
+            const adjustedOffset = yourProvenOffset * quadrantMultiplier;
+            const adjustedRadius = baseRadius - adjustedOffset + textHalfWidth;
+            
+            const position = polarToCartesian(
+              CONFIG.centerX,
+              CONFIG.centerY,
+              adjustedRadius,
+              angle
+            );
+            
+            newPositions[index] = position;
+          } catch (error) {
+            // Fallback to original positioning if measurement fails
+            const angle = (index / scanHits.length) * 360;
+            const position = polarToCartesianWithOffset(
+              CONFIG.centerX,
+              CONFIG.centerY,
+              CONFIG.scanHitRadius + 3,
+              angle,
+              75
+            );
+            newPositions[index] = position;
+          }
+        }
+      });
+      
+      setLabelPositions(newPositions);
+    }, 100);
+    
+    return () => clearTimeout(timeoutId);
+  }, [scanHits]);
 
   if (loading) {
     return (
@@ -250,12 +339,13 @@ function RadialScanChart() {
             );
           })}
 
-          {/* Simple black circle in the center */}
-          <circle
-            cx={CONFIG.centerX}
-            cy={CONFIG.centerY}
-            r={50}
-            fill="#1f2937"
+          {/* Map of Africa in the center */}
+          <image
+            href="/graphics/mapofafrica.png"
+            x={CONFIG.centerX - 100}
+            y={CONFIG.centerY - 100}
+            width={200}
+            height={200}
             className="transition-all duration-300"
           />
 
@@ -402,21 +492,18 @@ function RadialScanChart() {
               // Step 1: Calculate angle for even spacing
               const angle = (index / scanHits.length) * 360;
               
-              // Step 2: Calculate position so inner edge is always one space from outer ring
-              const desiredGap = 10; // One space (10px) gap from outer ring
-              const innerEdgeRadius = CONFIG.scanHitRadius + desiredGap;
-              const textCenterRadius = innerEdgeRadius + 5; // Add half font size to position text center
-              
-              const position = polarToCartesian(
-                CONFIG.centerX,
-                CONFIG.centerY,
-                textCenterRadius,
-                angle
-              );
+              // Step 2: Use calculated position if available, otherwise use initial estimate
+              const position = labelPositions[index] || 
+                polarToCartesianWithOffset(
+                  CONFIG.centerX,
+                  CONFIG.centerY,
+                  CONFIG.scanHitRadius + 3,
+                  angle,
+                  75 // Your proven offset
+                );
               
               // Step 3: Handle text rotation to keep text right-side-up
               let rotation;
-              let textAnchor = "middle"; // Center the text on the position
               
               // Calculate base rotation (perpendicular to radius)
               rotation = angle + 90;
@@ -444,12 +531,13 @@ function RadialScanChart() {
               
               return (
                 <text
+                  ref={(el) => textRefs.current[`text-${index}`] = el}
                   key={`scan-hit-${scanHit.id || index}`}
                   x={position.x}
                   y={position.y}
                   fontSize="10"
                   fill="#4B5563"
-                  textAnchor={textAnchor}
+                  textAnchor="middle" // Back to middle since we're positioning precisely
                   dominantBaseline="middle"
                   opacity={opacity}
                   transform={`rotate(${rotation}, ${position.x}, ${position.y})`}
