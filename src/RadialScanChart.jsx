@@ -20,18 +20,18 @@ import { axiosWithRetry, withPerformanceMonitoring } from './utils/apiUtils';
 import { useChartAnalytics } from './hooks/useAnalytics';
 
 const CONFIG = {
-  centerX: 1000,
-  centerY: 1000,
+  centerX: 1500,
+  centerY: 1500,
   domainRadii: {
-    'teaching-learning': 150,
-    'equity-access': 200,
-    'curriculum-reform': 250,
-    'education-society': 300,
-    'technology-digital': 350,
-    'investment-governance': 400,
-    'teacher-empowerment': 450
+    'teaching-learning': 225,
+    'equity-access': 300,
+    'curriculum-reform': 375,
+    'education-society': 450,
+    'technology-digital': 525,
+    'investment-governance': 600,
+    'teacher-empowerment': 675
   },
-  scanHitRadius: 550, // This is the radius of the outermost ring
+  scanHitRadius: 825, // This is the radius of the outermost ring
   ringColor: '#d1d5db',
   ringWidth: 1.5,
   positioning: {
@@ -178,6 +178,7 @@ function RadialScanChart() {
   const [hoveredDomain, setHoveredDomain] = useState(null);
   const [selectedDomain, setSelectedDomain] = useState(null);
   const [focusedScanHit, setFocusedScanHit] = useState(null);
+  const [selectedScanHit, setSelectedScanHit] = useState(null);
   const [hasInitiallyLoaded, setHasInitiallyLoaded] = useState(false);
   
   // State for dynamic positioning
@@ -228,49 +229,26 @@ function RadialScanChart() {
     setFocusedScanHit(null);
   }, []);
 
+  const closeModal = useCallback(() => {
+    setSelectedScanHit(null);
+  }, []);
+
   const handleScanHitClick = useCallback((scanHit, index) => {
     const scanHitId = scanHit.id || index;
     
     debugLog('Scan hit clicked', { 
       scanHitId, 
       title: scanHit.title, 
-      previousFocus: focusedScanHit,
+      previousSelection: selectedScanHit?.id,
       domains: scanHit.domains 
     });
     
-    // Immediately clear any previous focus to prevent race conditions
-    setFocusedScanHit(null);
-    
-    // Use setTimeout to ensure state update completes before setting new focus
-    setTimeout(() => {
-      setFocusedScanHit(scanHitId);
-      debugLog('Focus set to scan hit', { scanHitId });
-    }, 0);
+    // Set the selected scan hit to show in modal
+    setSelectedScanHit(scanHit);
     
     // Track analytics
     trackScanHitClick(scanHitId, scanHit.title, scanHit.domains);
-    
-    // Handle domain selection separately to avoid circular dependencies
-    if (scanHit.domains && scanHit.domains.length > 0) {
-      const domainId = scanHit.domains[0];
-      const domainLabel = DOMAIN_LABELS.find(d => d.id === domainId)?.label;
-      const isSelecting = selectedDomain !== domainId;
-      
-      debugLog('Domain selection triggered', { 
-        domainId, 
-        domainLabel, 
-        isSelecting,
-        previousDomain: selectedDomain 
-      });
-      
-      setSelectedDomain(prev => prev === domainId ? null : domainId);
-      
-      // Track domain selection analytics
-      if (isSelecting && domainLabel) {
-        trackDomainSelection(domainId, domainLabel);
-      }
-    }
-  }, [trackScanHitClick, trackDomainSelection, selectedDomain, focusedScanHit, debugLog]);
+  }, [trackScanHitClick, selectedScanHit, debugLog]);
 
   // Memoize domain labels lookup to avoid recalculation on every render
   const selectedDomainLabel = useMemo(() => {
@@ -361,6 +339,32 @@ function RadialScanChart() {
     
     return () => clearTimeout(timeoutId);
   }, [scanHits, trackChartRender]);
+
+  // ESC key listener for closing modal
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape' && selectedScanHit) {
+        closeModal();
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [selectedScanHit, closeModal]);
+
+  // Click outside modal to close it
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (selectedScanHit && !event.target.closest('.modal-panel')) {
+        closeModal();
+      }
+    };
+
+    if (selectedScanHit) {
+      document.addEventListener('click', handleClickOutside);
+      return () => document.removeEventListener('click', handleClickOutside);
+    }
+  }, [selectedScanHit, closeModal]);
 
   // ============================================================================
   // CONDITIONAL RENDERING
@@ -458,9 +462,9 @@ function RadialScanChart() {
   // MAIN RENDER
   // ============================================================================
   return (
-    <div className="w-full max-w-[2000px] mx-auto p-8 bg-gray-50 rounded-lg relative">
-      {/* Page Header with proper accessibility */}
-      <header className="text-center mb-8">
+    <div className="w-full max-w-[2000px] mx-auto bg-white rounded-lg shadow-md relative">
+      {/* Integrated Header */}
+      <header className="text-center p-4 pb-2">
         <h1 className="text-3xl font-bold text-gray-800 mb-2">Futures Scanning Data</h1>
         <p className="text-base text-gray-600">Interactive radial visualization of education domains</p>
         <p className="text-sm text-gray-500 mt-2">
@@ -479,9 +483,10 @@ function RadialScanChart() {
         </button>
       )}
       
-      <div className="bg-white rounded-lg p-8 shadow-md flex justify-center items-center">
+      {/* Chart Container */}
+      <div className="p-4 pt-2 flex justify-center items-center">
         <svg 
-          viewBox="0 0 2000 2000" 
+          viewBox="0 0 3000 3000" 
           className="max-w-full h-auto"
           xmlns="http://www.w3.org/2000/svg"
           role="img"
@@ -533,10 +538,10 @@ function RadialScanChart() {
           {/* Map of Africa in the center */}
           <image
             href="/graphics/mapofafrica.png"
-            x={CONFIG.centerX - 100}
-            y={CONFIG.centerY - 100}
-            width={200}
-            height={200}
+            x={CONFIG.centerX - 150}
+            y={CONFIG.centerY - 150}
+            width={300}
+            height={300}
             className="transition-all duration-300"
             role="img"
             aria-label="Map of Africa silhouette"
@@ -548,8 +553,8 @@ function RadialScanChart() {
             // Calculate the midpoint between the previous ring and this domain's ring
             let previousRadius;
             if (index === 0) {
-              // First label: between black center circle (50px radius) and first ring
-              previousRadius = 50;
+              // First label: between black center circle (75px radius) and first ring
+              previousRadius = 75;
             } else {
               // Use the previous domain's radius
               const previousDomainId = DOMAIN_LABELS[index - 1].id;
@@ -593,7 +598,7 @@ function RadialScanChart() {
                 <text
                   x={position.x}
                   y={position.y - 3}
-                  fontSize="10"
+                  fontSize="20"
                   fill="#374151"
                   textAnchor="middle"
                   opacity={opacity}
@@ -622,8 +627,8 @@ function RadialScanChart() {
                 {line2 && (
                   <text
                     x={position.x}
-                    y={position.y + 8}
-                    fontSize="10"
+                    y={position.y + 25}
+                    fontSize="20"
                     fill="#374151"
                     textAnchor="middle"
                     opacity={opacity}
@@ -676,7 +681,7 @@ function RadialScanChart() {
                     key={`dot-${scanHit.id || index}-${domainId}`}
                     cx={position.x}
                     cy={position.y}
-                    r={5}
+                    r={10}
                     fill="#374151"
                     stroke="white"
                     strokeWidth={1.5}
@@ -761,14 +766,14 @@ function RadialScanChart() {
                   key={`scan-hit-${scanHit.id || index}`}
                   x={position.x}
                   y={position.y}
-                  fontSize="10"
+                  fontSize="20"
                   fill={fillColor}
                   fontWeight={fontWeight}
                   textAnchor="middle" // Back to middle since we're positioning precisely
                   dominantBaseline="middle"
                   opacity={opacity}
                   transform={`rotate(${rotation}, ${position.x}, ${position.y})`}
-                  className="cursor-pointer transition-all duration-200 select-none hover:fill-gray-800 hover:font-semibold focus:outline-none focus:fill-blue-600 focus:font-semibold"
+                  className="cursor-pointer transition-all duration-200 select-none hover:fill-gray-800 hover:font-semibold hover:underline focus:outline-none focus:fill-blue-600 focus:font-semibold"
                   onClick={(e) => {
                     e.stopPropagation();
                     handleScanHitClick(scanHit, index);
@@ -796,7 +801,7 @@ function RadialScanChart() {
       {/* Status Messages with proper ARIA live regions */}
       {selectedDomainLabel && (
         <div 
-          className="mt-6 p-4 bg-blue-100 rounded-md text-center text-sm text-blue-800 font-medium"
+          className="mx-8 mb-8 p-4 bg-blue-100 rounded-md text-center text-sm text-blue-800 font-medium"
           role="status"
           aria-live="polite"
           aria-label={`Domain filter applied`}
@@ -807,12 +812,94 @@ function RadialScanChart() {
       
       {hoveredDomainLabel && !selectedDomain && (
         <div 
-          className="mt-6 p-4 bg-gray-200 rounded-md text-center text-sm text-gray-700 font-medium"
+          className="mx-8 mb-8 p-4 bg-gray-200 rounded-md text-center text-sm text-gray-700 font-medium"
           role="status"
           aria-live="polite"
           aria-label={`Hovering over domain`}
         >
           Currently viewing: {hoveredDomainLabel}
+        </div>
+      )}
+
+      {/* Scan Hit Details Modal - Side Panel */}
+      {selectedScanHit && (
+        <div className="fixed inset-0 z-50 pointer-events-none">
+          {/* Modal Content - Positioned to the right */}
+          <div className="modal-panel absolute right-0 top-0 h-full bg-white shadow-2xl border-l border-gray-200 w-96 max-w-[90vw] pointer-events-auto overflow-hidden">
+            {/* Header with close button */}
+            <div className="flex items-start justify-between p-6 border-b border-gray-200">
+              <h2 className="text-lg font-bold text-gray-900 pr-8 leading-tight">
+                {selectedScanHit.title}
+              </h2>
+              <button
+                onClick={closeModal}
+                className="flex-shrink-0 p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                aria-label="Close modal"
+              >
+                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Scrollable Content */}
+            <div className="p-6 overflow-y-auto h-[calc(100vh-120px)]">
+              {/* Associated Domains */}
+              {selectedScanHit.domains && selectedScanHit.domains.length > 0 && (
+                <div className="mb-6">
+                  <h3 className="text-sm font-semibold text-gray-700 mb-3">Associated Domains</h3>
+                  <div className="flex flex-wrap gap-2">
+                    {selectedScanHit.domains.map((domainId) => {
+                      const domainLabel = DOMAIN_LABELS.find(d => d.id === domainId)?.label;
+                      return (
+                        <span
+                          key={domainId}
+                          className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
+                        >
+                          {domainLabel}
+                        </span>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Date */}
+              {selectedScanHit.date && (
+                <div className="mb-6">
+                  <h3 className="text-sm font-semibold text-gray-700 mb-2">Horizon</h3>
+                  <p className="text-gray-600">{selectedScanHit.date}</p>
+                </div>
+              )}
+
+              {/* Source */}
+              {selectedScanHit.source && (
+                <div className="mb-6">
+                  <h3 className="text-sm font-semibold text-gray-700 mb-2">Source</h3>
+                  <a
+                    href={selectedScanHit.source}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-blue-600 hover:text-blue-800 underline break-all"
+                  >
+                    {selectedScanHit.source}
+                  </a>
+                </div>
+              )}
+
+              {/* Description */}
+              {selectedScanHit.description && (
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-700 mb-3">Description</h3>
+                  <div className="prose prose-sm max-w-none">
+                    <p className="text-gray-600 leading-relaxed whitespace-pre-wrap">
+                      {selectedScanHit.description}
+                    </p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       )}
       
