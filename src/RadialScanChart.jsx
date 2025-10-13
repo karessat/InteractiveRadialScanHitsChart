@@ -20,20 +20,20 @@ import { axiosWithRetry, withPerformanceMonitoring } from './utils/apiUtils';
 import { useChartAnalytics } from './hooks/useAnalytics';
 
 const CONFIG = {
-  centerX: 1500,
-  centerY: 1500,
+  centerX: 2500,
+  centerY: 2500,
   domainRadii: {
-    'teaching-learning': 300,
-    'equity-access': 375,
-    'curriculum-reform': 450,
-    'education-society': 525,
-    'technology-digital': 600,
-    'investment-governance': 675,
-    'teacher-empowerment': 750
+    'teaching-learning': 375,
+    'equity-access': 525,
+    'curriculum-reform': 675,
+    'education-society': 825,
+    'technology-digital': 975,
+    'investment-governance': 1125,
+    'teacher-empowerment': 1275
   },
-  scanHitRadius: 825, // This is the radius of the outermost ring
+  scanHitRadius: 1350, // This is the radius of the outermost ring
   ringColor: '#d1d5db',
-  ringWidth: 1.5,
+  ringWidth: 4,
   positioning: {
     desiredGap: 3,
     baseOffset: 75,
@@ -191,6 +191,57 @@ const polarToCartesian = (centerX, centerY, radius, angleInDegrees) => {
     x: centerX + (radius * Math.cos(angleInRadians)),
     y: centerY + (radius * Math.sin(angleInRadians))
   };
+};
+
+/**
+ * Creates an SVG arc path between two radii
+ * @param {number} centerX - X coordinate of the center point
+ * @param {number} centerY - Y coordinate of the center point
+ * @param {number} innerRadius - Inner radius of the arc
+ * @param {number} outerRadius - Outer radius of the arc
+ * @param {number} startAngle - Start angle in degrees (0-360)
+ * @param {number} endAngle - End angle in degrees (0-360)
+ * @returns {string} SVG path string for the arc
+ */
+const createArcPath = (centerX, centerY, innerRadius, outerRadius, startAngle, endAngle) => {
+  const startAngleRad = (startAngle - 90) * Math.PI / 180;
+  const endAngleRad = (endAngle - 90) * Math.PI / 180;
+  
+  const x1 = centerX + innerRadius * Math.cos(startAngleRad);
+  const y1 = centerY + innerRadius * Math.sin(startAngleRad);
+  const x2 = centerX + outerRadius * Math.cos(startAngleRad);
+  const y2 = centerY + outerRadius * Math.sin(startAngleRad);
+  const x3 = centerX + outerRadius * Math.cos(endAngleRad);
+  const y3 = centerY + outerRadius * Math.sin(endAngleRad);
+  const x4 = centerX + innerRadius * Math.cos(endAngleRad);
+  const y4 = centerY + innerRadius * Math.sin(endAngleRad);
+  
+  const largeArcFlag = endAngle - startAngle <= 180 ? "0" : "1";
+  
+  return `M ${x1} ${y1} L ${x2} ${y2} A ${outerRadius} ${outerRadius} 0 ${largeArcFlag} 1 ${x3} ${y3} L ${x4} ${y4} A ${innerRadius} ${innerRadius} 0 ${largeArcFlag} 0 ${x1} ${y1} Z`;
+};
+
+/**
+ * Creates a full circle annulus (ring) path for clickable domain areas
+ * @param {number} centerX - X coordinate of the center point
+ * @param {number} centerY - Y coordinate of the center point
+ * @param {number} innerRadius - Inner radius of the annulus
+ * @param {number} outerRadius - Outer radius of the annulus
+ * @returns {string} SVG path string for the full circle annulus
+ */
+const createFullAnnulusPath = (centerX, centerY, innerRadius, outerRadius) => {
+  // Create two semicircular arcs to form a complete circle
+  // This avoids the degenerate case of a 360-degree arc
+  return `
+    M ${centerX - outerRadius} ${centerY}
+    A ${outerRadius} ${outerRadius} 0 0 1 ${centerX + outerRadius} ${centerY}
+    A ${outerRadius} ${outerRadius} 0 0 1 ${centerX - outerRadius} ${centerY}
+    Z
+    M ${centerX - innerRadius} ${centerY}
+    A ${innerRadius} ${innerRadius} 0 0 0 ${centerX + innerRadius} ${centerY}
+    A ${innerRadius} ${innerRadius} 0 0 0 ${centerX - innerRadius} ${centerY}
+    Z
+  `.trim();
 };
 
 /**
@@ -421,19 +472,23 @@ function RadialScanChart() {
             try {
               // Measure actual text dimensions and calculate precise position
               const bbox = textElement.getBBox();
-              const angle = (index / scanHits.length) * 360;
-              const position = calculateTextPosition(bbox, angle);
+              const anglePerHit = 360 / scanHits.length;
+              const segmentStartAngle = (index / scanHits.length) * 360;
+              const segmentCenterAngle = segmentStartAngle + (anglePerHit / 2);
+              const position = calculateTextPosition(bbox, segmentCenterAngle);
               
               newPositions[index] = position;
             } catch (error) {
               // Fallback to original positioning if measurement fails
-              const angle = (index / scanHits.length) * 360;
+              const anglePerHit = 360 / scanHits.length;
+              const segmentStartAngle = (index / scanHits.length) * 360;
+              const segmentCenterAngle = segmentStartAngle + (anglePerHit / 2);
               const adjustedRadius = (CONFIG.scanHitRadius + CONFIG.positioning.desiredGap) - CONFIG.positioning.baseOffset;
               const position = polarToCartesian(
                 CONFIG.centerX,
                 CONFIG.centerY,
                 adjustedRadius,
-                angle
+                segmentCenterAngle
               );
               newPositions[index] = position;
             }
@@ -579,14 +634,11 @@ function RadialScanChart() {
   // MAIN RENDER
   // ============================================================================
   return (
-    <div className="w-full max-w-[2000px] mx-auto bg-white rounded-lg shadow-md relative px-4 sm:px-8 lg:px-20">
+    <div className="w-full max-w-[2400px] mx-auto bg-white rounded-lg shadow-md relative px-8 sm:px-12 lg:px-24">
       {/* Integrated Header */}
       <header className="text-center p-4 pb-2">
-        <h1 className="text-3xl font-bold text-gray-800 mb-2">Futures Scanning Data</h1>
-        <p className="text-base text-gray-600">Interactive radial visualization of education domains</p>
-        <p className="text-sm text-gray-500 mt-2">
-          Use your mouse or keyboard to interact with the chart. Click on domain labels or scan hit dots to filter scan hits.
-        </p>
+        <h1 className="text-3xl font-bold text-blue-600 mb-2">UNICEF Future Fellows Scanning Highlights</h1>
+        <p className="text-base text-gray-600">Interactive scanning radar</p>
       </header>
       
       {/* Clear Selection Button */}
@@ -601,26 +653,26 @@ function RadialScanChart() {
       )}
       
       {/* STEEP Category Legend */}
-      <div className="absolute left-8 top-1/2 -translate-y-1/2 bg-white p-4 rounded-lg shadow-md border border-gray-200">
-        <h3 className="text-sm font-semibold text-gray-700 mb-3">STEEP Categories</h3>
-        <div className="space-y-2">
+      <div className="absolute left-8 top-32 bg-white p-10 rounded-lg shadow-md border border-gray-200">
+        <h3 className="text-2xl font-semibold text-gray-700 mb-6">STEEP Categories</h3>
+        <div className="space-y-5">
           {Object.entries(STEEP_COLORS).map(([category, color]) => (
-            <div key={category} className="flex items-center gap-2">
+            <div key={category} className="flex items-center gap-4">
               <div 
-                className="w-4 h-4 rounded-full border border-gray-300"
+                className="w-8 h-8 rounded-full border border-gray-300"
                 style={{ backgroundColor: color }}
                 aria-hidden="true"
               />
-              <span className="text-xs text-gray-600">{category}</span>
+              <span className="text-lg text-gray-600 font-medium">{category}</span>
             </div>
           ))}
         </div>
       </div>
       
       {/* Chart Container */}
-      <div className="p-4 pt-2 flex justify-center items-center">
+      <div className="p-16 pt-8 pb-20 flex justify-center items-center">
         <svg 
-          viewBox="0 0 3000 3000" 
+          viewBox="0 0 5000 5000" 
           className="max-w-full h-auto"
           xmlns="http://www.w3.org/2000/svg"
           role="img"
@@ -637,18 +689,22 @@ function RadialScanChart() {
           </desc>
 
           {/* Concentric circles for each domain */}
-          {DOMAIN_LABELS.map((domain) => {
+          {DOMAIN_LABELS.map((domain, index) => {
             const radius = CONFIG.domainRadii[domain.id];
             const isSelected = selectedDomain === domain.id;
             const isOtherSelected = selectedDomain && selectedDomain !== domain.id;
+            
+            // Check if this ring is the inner boundary of the selected domain
+            const selectedDomainIndex = DOMAIN_LABELS.findIndex(d => d.id === selectedDomain);
+            const isInnerBoundaryOfSelected = selectedDomainIndex > 0 && index === selectedDomainIndex - 1;
             
             let strokeColor = CONFIG.ringColor;
             let strokeWidth = CONFIG.ringWidth;
             let opacity = 1.0;
             
-            if (isSelected) {
-              strokeColor = '#374151';
-              strokeWidth = 3;
+            if (isSelected || isInnerBoundaryOfSelected) {
+              strokeColor = '#1f2937'; // Darker gray-800 for selected domain boundaries
+              strokeWidth = 6; // Thicker border for selected domain boundaries
               opacity = 1.0;
             } else if (isOtherSelected) {
               opacity = 0.3;
@@ -669,42 +725,245 @@ function RadialScanChart() {
             );
           })}
 
-          {/* Additional rings between center and first domain */}
-          <circle
-            cx={CONFIG.centerX}
-            cy={CONFIG.centerY}
-            r={150}
-            fill="none"
-            stroke={CONFIG.ringColor}
-            strokeWidth={CONFIG.ringWidth}
-            opacity={1.0}
-            className="transition-all duration-300"
-          />
-          <circle
-            cx={CONFIG.centerX}
-            cy={CONFIG.centerY}
-            r={225}
-            fill="none"
-            stroke={CONFIG.ringColor}
-            strokeWidth={CONFIG.ringWidth}
-            opacity={1.0}
-            className="transition-all duration-300"
-          />
-
           {/* Map of Africa in the center */}
           <image
             href="/graphics/mapofafrica.png"
-            x={CONFIG.centerX - 150}
-            y={CONFIG.centerY - 150}
-            width={300}
-            height={300}
+            x={CONFIG.centerX - 300}
+            y={CONFIG.centerY - 300}
+            width={600}
+            height={600}
             className="transition-all duration-300"
             role="img"
             aria-label="Map of Africa silhouette"
             alt="Central map of Africa showing the geographic focus of the education domain data"
           />
 
-          {/* Domain labels positioned between rings at the bottom center (180 degrees) */}
+          {/* Single ring between center and first domain */}
+          <circle
+            cx={CONFIG.centerX}
+            cy={CONFIG.centerY}
+            r={225}
+            fill="none"
+            stroke={selectedDomain === 'teaching-learning' ? '#1f2937' : CONFIG.ringColor}
+            strokeWidth={selectedDomain === 'teaching-learning' ? 6 : CONFIG.ringWidth}
+            opacity={selectedDomain && selectedDomain !== 'teaching-learning' ? 0.3 : 1.0}
+            className="transition-all duration-300"
+          />
+
+          {/* Radiating segment boundary lines */}
+          <g id="segment-boundaries">
+            {scanHits.map((scanHit, index) => {
+              const anglePerHit = 360 / scanHits.length;
+              const segmentStartAngle = (index / scanHits.length) * 360;
+              
+              // Calculate line endpoints from center to outer ring
+              const innerPoint = polarToCartesian(CONFIG.centerX, CONFIG.centerY, 0, segmentStartAngle);
+              const outerPoint = polarToCartesian(CONFIG.centerX, CONFIG.centerY, CONFIG.scanHitRadius, segmentStartAngle);
+              
+              return (
+                <line
+                  key={`boundary-${scanHit.id || index}`}
+                  x1={innerPoint.x}
+                  y1={innerPoint.y}
+                  x2={outerPoint.x}
+                  y2={outerPoint.y}
+                  stroke="#e5e7eb"
+                  strokeWidth="3"
+                  opacity="0.7"
+                  className="transition-opacity duration-300"
+                />
+              );
+            })}
+          </g>
+
+          {/* Colored arc segments - show which domains each scan hit belongs to */}
+          <g id="domain-segments">
+            {scanHits.map((scanHit, index) => {
+              // Calculate the angle and width for this scan hit
+              const anglePerHit = 360 / scanHits.length;
+              const startAngle = (index / scanHits.length) * 360;
+              const endAngle = startAngle + anglePerHit;
+              
+              // Create a segment for each domain this scan hit belongs to
+              return scanHit.domains.map((domainId) => {
+                // Get the radius for this domain
+                const domainRadius = CONFIG.domainRadii[domainId];
+                
+                // Calculate inner and outer radii for the segment
+                // Find the previous domain radius or use center/intermediate rings
+                let innerRadius;
+                if (domainId === 'teaching-learning') {
+                  innerRadius = 225; // Second intermediate ring
+                } else {
+                  const domainIndex = DOMAIN_ORDER.indexOf(domainId);
+                  const previousDomainId = DOMAIN_ORDER[domainIndex - 1];
+                  innerRadius = CONFIG.domainRadii[previousDomainId];
+                }
+                
+                const outerRadius = domainRadius;
+                
+                // Determine opacity based on selection
+                let opacity = 0.6; // Semi-transparent by default
+                if (selectedDomain) {
+                  // Show segments for the selected domain ring at full opacity
+                  // Dim segments for other domain rings
+                  opacity = domainId === selectedDomain ? 1.0 : 0.2;
+                }
+                
+                return (
+                  <path
+                    key={`segment-${scanHit.id || index}-${domainId}`}
+                    d={createArcPath(CONFIG.centerX, CONFIG.centerY, innerRadius, outerRadius, startAngle, endAngle)}
+                    fill={getSteepColor(scanHit.steepCategory)}
+                    stroke="#ffffff"
+                    strokeWidth="3"
+                    opacity={opacity}
+                    className="transition-opacity duration-200"
+                  />
+                );
+              });
+            })}
+          </g>
+
+          {/* Invisible clickable rings for each domain band - larger click targets */}
+          <g id="domain-clickable-areas">
+            {DOMAIN_LABELS.map((domain, index) => {
+              // Calculate inner and outer radius for this domain band
+              let innerRadius;
+              if (index === 0) {
+                innerRadius = 225; // Start from second intermediate ring
+              } else {
+                const previousDomainId = DOMAIN_LABELS[index - 1].id;
+                innerRadius = CONFIG.domainRadii[previousDomainId];
+              }
+              const outerRadius = CONFIG.domainRadii[domain.id];
+              
+              // Create a full circle annulus path using the helper function
+              const ringPath = createFullAnnulusPath(
+                CONFIG.centerX, 
+                CONFIG.centerY, 
+                innerRadius, 
+                outerRadius
+              );
+              
+              return (
+                <path
+                  key={`clickable-${domain.id}`}
+                  d={ringPath}
+                  fill="transparent"
+                  stroke="none"
+                  fillRule="evenodd"
+                  className="cursor-pointer transition-all duration-200 focus:outline-none"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDomainClick(domain.id);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      handleDomainClick(domain.id);
+                    }
+                  }}
+                  tabIndex={0}
+                  role="button"
+                  aria-label={`Select ${domain.label} domain`}
+                  aria-pressed={selectedDomain === domain.id}
+                />
+              );
+            })}
+          </g>
+
+          {/* Scan hit labels around the outer perimeter */}
+          <g id="scan-hit-labels">
+            {scanHits.map((scanHit, index) => {
+              // Step 1: Calculate angle for segment center (not start)
+              const anglePerHit = 360 / scanHits.length;
+              const segmentStartAngle = (index / scanHits.length) * 360;
+              const segmentCenterAngle = segmentStartAngle + (anglePerHit / 2);
+              
+              // Step 2: Use calculated position if available, otherwise use initial estimate
+              const position = labelPositions[index] || 
+                polarToCartesian(
+                  CONFIG.centerX,
+                  CONFIG.centerY,
+                  (CONFIG.scanHitRadius + CONFIG.positioning.desiredGap) - CONFIG.positioning.baseOffset,
+                  segmentCenterAngle
+                );
+              
+              // Step 3: Handle text rotation to keep text right-side-up
+              let rotation;
+              
+              // Calculate base rotation (perpendicular to radius)
+              rotation = segmentCenterAngle + 90;
+              
+              // Normalize rotation to keep text right-side-up (between -90 and 90 degrees)
+              while (rotation > 90) {
+                rotation -= 180;
+              }
+              while (rotation < -90) {
+                rotation += 180;
+              }
+              
+              // Step 4: Truncate title to 50-55 characters and trim whitespace
+              const cleanTitle = scanHit.title.trim(); // Remove leading/trailing spaces
+              const truncatedTitle = cleanTitle.length > 55 
+                ? cleanTitle.substring(0, 52) + "..."
+                : cleanTitle;
+              
+              // Determine opacity and styling based on selection and focus state
+              let opacity = 1.0;
+              let fillColor = "#4B5563";
+              
+              if (selectedDomain) {
+                // If a domain is selected, only show labels for scan hits that belong to that domain
+                opacity = scanHit.domains.includes(selectedDomain) ? 1.0 : 0.2;
+              }
+              
+              // Check if this scan hit is focused
+              const isFocused = focusedScanHit === (scanHit.id || index);
+              if (isFocused) {
+                fillColor = "#1D4ED8"; // Blue color for focused scan hit
+                opacity = 1.0;
+              }
+              
+              return (
+                <text
+                  ref={(el) => textRefs.current[`text-${index}`] = el}
+                  key={`scan-hit-${scanHit.id || index}`}
+                  x={position.x}
+                  y={position.y}
+                  fontSize="40"
+                  fill={fillColor}
+                  fontWeight="normal"
+                  textAnchor="middle" // Back to middle since we're positioning precisely
+                  dominantBaseline="middle"
+                  opacity={opacity}
+                  transform={`rotate(${rotation}, ${position.x}, ${position.y})`}
+                  className="cursor-pointer transition-all duration-200 select-none hover:fill-gray-800 hover:opacity-80 focus:outline-none focus:fill-blue-600"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleScanHitClick(scanHit, index);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      handleScanHitClick(scanHit, index);
+                    }
+                  }}
+                  tabIndex={0}
+                  role="button"
+                  aria-label={`Scan hit: ${truncatedTitle}${scanHit.domains.length > 1 ? ` (belongs to ${scanHit.domains.length} domains)` : ''}`}
+                  aria-pressed={isFocused}
+                >
+                  {truncatedTitle}
+                </text>
+              );
+            })}
+          </g>
+
+          {/* Domain labels positioned between rings at the bottom center (180 degrees) - Rendered last to appear on top */}
           {DOMAIN_LABELS.map((domain, index) => {
             // Calculate the midpoint between the previous ring and this domain's ring
             let previousRadius;
@@ -740,11 +999,9 @@ function RadialScanChart() {
             const isOtherSelected = selectedDomain && selectedDomain !== domain.id;
             
             let opacity = 1.0;
-            let fontWeight = 'normal';
             
             if (isSelected) {
               opacity = 1.0;
-              fontWeight = 'bold';
             } else if (isOtherSelected) {
               opacity = 0.3;
             }
@@ -754,12 +1011,12 @@ function RadialScanChart() {
                 <text
                   x={position.x}
                   y={position.y - 3}
-                  fontSize="20"
+                  fontSize="42"
                   fill="#374151"
                   textAnchor="middle"
                   opacity={opacity}
-                  fontWeight={fontWeight}
-                  className="cursor-pointer transition-all duration-300 select-none hover:fill-gray-800 hover:font-semibold focus:outline-none focus:fill-blue-600 focus:font-semibold"
+                  fontWeight="bold"
+                  className="cursor-pointer transition-all duration-300 select-none hover:fill-gray-800 focus:outline-none focus:fill-blue-600"
                   onMouseEnter={() => setHoveredDomain(domain.id)}
                   onMouseLeave={() => setHoveredDomain(null)}
                   onClick={(e) => {
@@ -783,13 +1040,13 @@ function RadialScanChart() {
                 {line2 && (
                   <text
                     x={position.x}
-                    y={position.y + 25}
-                    fontSize="20"
+                    y={position.y + 46}
+                    fontSize="42"
                     fill="#374151"
                     textAnchor="middle"
                     opacity={opacity}
-                    fontWeight={fontWeight}
-                    className="cursor-pointer transition-all duration-300 select-none hover:fill-gray-800 hover:font-semibold"
+                    fontWeight="bold"
+                    className="cursor-pointer transition-all duration-300 select-none hover:fill-gray-800"
                     onMouseEnter={() => setHoveredDomain(domain.id)}
                     onMouseLeave={() => setHoveredDomain(null)}
                     onClick={(e) => {
@@ -805,152 +1062,29 @@ function RadialScanChart() {
             );
           })}
 
-          {/* Domain dots - show which domains each scan hit belongs to */}
-          <g id="domain-dots">
-            {scanHits.map((scanHit, index) => {
-              // Calculate the same angle as the scan hit label
-              const angle = (index / scanHits.length) * 360;
-              
-              // Create a dot for each domain this scan hit belongs to
-              return scanHit.domains.map((domainId) => {
-                // Get the radius for this domain
-                const domainRadius = CONFIG.domainRadii[domainId];
-                
-                // Calculate position at the domain's radius and scan hit's angle
-                const position = polarToCartesian(
-                  CONFIG.centerX,
-                  CONFIG.centerY,
-                  domainRadius,
-                  angle
-                );
-                
-                // Determine opacity based on selection
-                let opacity = 0.8;
-                if (selectedDomain) {
-                  // Show dots for the selected domain ring at full opacity
-                  // Dim dots for other domain rings
-                  opacity = domainId === selectedDomain ? 0.8 : 0.2;
-                }
-                
-                return (
-                  <circle
-                    key={`dot-${scanHit.id || index}-${domainId}`}
-                    cx={position.x}
-                    cy={position.y}
-                    r={10}
-                    fill={getSteepColor(scanHit.steepCategory)}
-                    stroke="white"
-                    strokeWidth={1.5}
-                    opacity={opacity}
-                    className="cursor-pointer transition-opacity duration-200 hover:opacity-100"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleDomainClick(domainId);
-                    }}
-                    role="button"
-                    tabIndex={0}
-                    aria-label={`Scan hit ${scanHit.title} in ${DOMAIN_LABELS.find(d => d.id === domainId)?.label} domain - ${scanHit.steepCategory || 'No category'}`}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Enter' || e.key === ' ') {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        handleDomainClick(domainId);
-                      }
-                    }}
-                  />
-                );
-              });
-            })}
-          </g>
-
-          {/* Scan hit labels around the outer perimeter */}
-          <g id="scan-hit-labels">
-            {scanHits.map((scanHit, index) => {
-              // Step 1: Calculate angle for even spacing
-              const angle = (index / scanHits.length) * 360;
-              
-              // Step 2: Use calculated position if available, otherwise use initial estimate
-              const position = labelPositions[index] || 
-                polarToCartesian(
-                  CONFIG.centerX,
-                  CONFIG.centerY,
-                  (CONFIG.scanHitRadius + CONFIG.positioning.desiredGap) - CONFIG.positioning.baseOffset,
-                  angle
-                );
-              
-              // Step 3: Handle text rotation to keep text right-side-up
-              let rotation;
-              
-              // Calculate base rotation (perpendicular to radius)
-              rotation = angle + 90;
-              
-              // Normalize rotation to keep text right-side-up (between -90 and 90 degrees)
-              while (rotation > 90) {
-                rotation -= 180;
+          {/* Clickable center circle to clear domain selection - rendered last to be on top */}
+          <circle
+            cx={CONFIG.centerX}
+            cy={CONFIG.centerY}
+            r={225}
+            fill="transparent"
+            stroke="none"
+            className="cursor-pointer transition-all duration-200 focus:outline-none"
+            onClick={(e) => {
+              e.stopPropagation();
+              clearSelection();
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                e.stopPropagation();
+                clearSelection();
               }
-              while (rotation < -90) {
-                rotation += 180;
-              }
-              
-              // Step 4: Truncate title to 50-55 characters and trim whitespace
-              const cleanTitle = scanHit.title.trim(); // Remove leading/trailing spaces
-              const truncatedTitle = cleanTitle.length > 55 
-                ? cleanTitle.substring(0, 52) + "..."
-                : cleanTitle;
-              
-              // Determine opacity and styling based on selection and focus state
-              let opacity = 1.0;
-              let fillColor = "#4B5563";
-              let fontWeight = "normal";
-              
-              if (selectedDomain) {
-                // If a domain is selected, only show labels for scan hits that belong to that domain
-                opacity = scanHit.domains.includes(selectedDomain) ? 1.0 : 0.2;
-              }
-              
-              // Check if this scan hit is focused
-              const isFocused = focusedScanHit === (scanHit.id || index);
-              if (isFocused) {
-                fillColor = "#1D4ED8"; // Blue color for focused scan hit
-                fontWeight = "semibold";
-                opacity = 1.0;
-              }
-              
-              return (
-                <text
-                  ref={(el) => textRefs.current[`text-${index}`] = el}
-                  key={`scan-hit-${scanHit.id || index}`}
-                  x={position.x}
-                  y={position.y}
-                  fontSize="20"
-                  fill={fillColor}
-                  fontWeight={fontWeight}
-                  textAnchor="middle" // Back to middle since we're positioning precisely
-                  dominantBaseline="middle"
-                  opacity={opacity}
-                  transform={`rotate(${rotation}, ${position.x}, ${position.y})`}
-                  className="cursor-pointer transition-all duration-200 select-none hover:fill-gray-800 hover:font-semibold hover:underline focus:outline-none focus:fill-blue-600 focus:font-semibold"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleScanHitClick(scanHit, index);
-                  }}
-                  onKeyDown={(e) => {
-                    if (e.key === 'Enter' || e.key === ' ') {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      handleScanHitClick(scanHit, index);
-                    }
-                  }}
-                  tabIndex={0}
-                  role="button"
-                  aria-label={`Scan hit: ${truncatedTitle}${scanHit.domains.length > 1 ? ` (belongs to ${scanHit.domains.length} domains)` : ''}`}
-                  aria-pressed={isFocused}
-                >
-                  {truncatedTitle}
-                </text>
-              );
-            })}
-          </g>
+            }}
+            tabIndex={selectedDomain ? 0 : -1}
+            role="button"
+            aria-label="Click center to clear domain selection"
+          />
         </svg>
       </div>
 
@@ -966,16 +1100,18 @@ function RadialScanChart() {
         </div>
       )}
       
-      {hoveredDomainLabel && !selectedDomain && (
-        <div 
-          className="mx-8 mb-8 p-4 bg-gray-200 rounded-md text-center text-sm text-gray-700 font-medium"
-          role="status"
-          aria-live="polite"
-          aria-label={`Hovering over domain`}
-        >
-          Currently viewing: {hoveredDomainLabel}
-        </div>
-      )}
+      <div className="mx-8 mb-8 min-h-[3.5rem] flex items-center justify-center transition-all duration-200">
+        {hoveredDomainLabel && !selectedDomain && (
+          <div 
+            className="p-4 bg-gray-200 rounded-md text-center text-sm text-gray-700 font-medium"
+            role="status"
+            aria-live="polite"
+            aria-label={`Hovering over domain`}
+          >
+            Currently viewing: {hoveredDomainLabel}
+          </div>
+        )}
+      </div>
 
       {/* Scan Hit Details Modal - Side Panel */}
       {selectedScanHit && (
