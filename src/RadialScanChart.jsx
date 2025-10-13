@@ -23,13 +23,13 @@ const CONFIG = {
   centerX: 1500,
   centerY: 1500,
   domainRadii: {
-    'teaching-learning': 225,
-    'equity-access': 300,
-    'curriculum-reform': 375,
-    'education-society': 450,
-    'technology-digital': 525,
-    'investment-governance': 600,
-    'teacher-empowerment': 675
+    'teaching-learning': 300,
+    'equity-access': 375,
+    'curriculum-reform': 450,
+    'education-society': 525,
+    'technology-digital': 600,
+    'investment-governance': 675,
+    'teacher-empowerment': 750
   },
   scanHitRadius: 825, // This is the radius of the outermost ring
   ringColor: '#d1d5db',
@@ -72,13 +72,13 @@ const STEEP_COLORS = {
 };
 
 const DOMAIN_ORDER = [
-  'teaching-learning',     // Innermost (225px)
-  'equity-access',         // 300px
-  'curriculum-reform',     // 375px
-  'education-society',     // 450px
-  'technology-digital',    // 525px
-  'investment-governance', // 600px
-  'teacher-empowerment'    // Outermost (675px)
+  'teaching-learning',     // Innermost (300px)
+  'equity-access',         // 375px
+  'curriculum-reform',     // 450px
+  'education-society',     // 525px
+  'technology-digital',    // 600px
+  'investment-governance', // 675px
+  'teacher-empowerment'    // Outermost (750px)
 ];
 
 const STEEP_ORDER = [
@@ -669,6 +669,28 @@ function RadialScanChart() {
             );
           })}
 
+          {/* Additional rings between center and first domain */}
+          <circle
+            cx={CONFIG.centerX}
+            cy={CONFIG.centerY}
+            r={150}
+            fill="none"
+            stroke={CONFIG.ringColor}
+            strokeWidth={CONFIG.ringWidth}
+            opacity={1.0}
+            className="transition-all duration-300"
+          />
+          <circle
+            cx={CONFIG.centerX}
+            cy={CONFIG.centerY}
+            r={225}
+            fill="none"
+            stroke={CONFIG.ringColor}
+            strokeWidth={CONFIG.ringWidth}
+            opacity={1.0}
+            className="transition-all duration-300"
+          />
+
           {/* Map of Africa in the center */}
           <image
             href="/graphics/mapofafrica.png"
@@ -687,8 +709,8 @@ function RadialScanChart() {
             // Calculate the midpoint between the previous ring and this domain's ring
             let previousRadius;
             if (index === 0) {
-              // First label: between black center circle (75px radius) and first ring
-              previousRadius = 75;
+              // First label: between second intermediate ring (225px) and first domain ring (300px)
+              previousRadius = 225;
             } else {
               // Use the previous domain's radius
               const previousDomainId = DOMAIN_LABELS[index - 1].id;
