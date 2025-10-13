@@ -15,6 +15,10 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 // Third-party imports
 import axios from 'axios';
 
+// Utility imports
+import { axiosWithRetry, withPerformanceMonitoring } from './utils/apiUtils';
+import { useChartAnalytics } from './hooks/useAnalytics';
+
 const CONFIG = {
   centerX: 1000,
   centerY: 1000,
@@ -96,25 +100,22 @@ const calculateTextPosition = (bbox, angle, baseOffset = CONFIG.positioning.base
 
 
 /**
- * Fetches scan hits data from AITable API
+ * Fetches scan hits data from AITable API with retry logic
  * @returns {Promise<Array>} Array of raw records from AITable
- * @throws {Error} If API request fails
+ * @throws {Error} If API request fails after all retry attempts
  */
 const fetchScanHits = async () => {
-  try {
-    const response = await axios.get(
-      `https://api.aitable.ai/fusion/v1/datasheets/${import.meta.env.VITE_SCAN_HITS_DATASHEET_ID}/records`,
-      {
-        headers: {
-          'Authorization': `Bearer ${import.meta.env.VITE_AITABLE_TOKEN}`
-        }
-      }
-    );
+  const url = `https://api.aitable.ai/fusion/v1/datasheets/${import.meta.env.VITE_SCAN_HITS_DATASHEET_ID}/records`;
+  const config = {
+    headers: {
+      'Authorization': `Bearer ${import.meta.env.VITE_AITABLE_TOKEN}`
+    }
+  };
+
+  return withPerformanceMonitoring('fetchScanHits', async () => {
+    const response = await axiosWithRetry(url, config);
     return response.data.data.records;
-  } catch (error) {
-    console.error('Error fetching scan hits:', error);
-    throw error;
-  }
+  });
 };
 
 /**
@@ -176,21 +177,100 @@ function RadialScanChart() {
   const [error, setError] = useState(null);
   const [hoveredDomain, setHoveredDomain] = useState(null);
   const [selectedDomain, setSelectedDomain] = useState(null);
+  const [focusedScanHit, setFocusedScanHit] = useState(null);
+  const [hasInitiallyLoaded, setHasInitiallyLoaded] = useState(false);
   
   // State for dynamic positioning
   const [labelPositions, setLabelPositions] = useState({});
   const textRefs = useRef({});
+  const performanceTrackedRef = useRef(false);
+  const renderCountRef = useRef(0);
+  const lastRenderTimeRef = useRef(0);
+
+  // Analytics hook
+  const { trackDomainSelection, trackScanHitClick, trackChartRender } = useChartAnalytics();
+
+  // Debug logging utility
+  const debugLog = useCallback((message, data) => {
+    if (import.meta.env.MODE === 'development' && import.meta.env.VITE_DEBUG_LOGGING === 'true') {
+      console.log(`[RadialScanChart] ${message}`, data);
+    }
+  }, []);
 
   // ============================================================================
   // OPTIMIZED EVENT HANDLERS & MEMOIZATION
   // ============================================================================
   const handleDomainClick = useCallback((domainId) => {
+    const domainLabel = DOMAIN_LABELS.find(d => d.id === domainId)?.label;
+    const isSelecting = selectedDomain !== domainId;
+    
+    debugLog('Domain clicked', { 
+      domainId, 
+      domainLabel, 
+      isSelecting,
+      previousFocus: focusedScanHit,
+      previousDomain: selectedDomain 
+    });
+    
+    // Clear any focused scan hit when clicking domain rings
+    setFocusedScanHit(null);
+    
     setSelectedDomain(prev => prev === domainId ? null : domainId);
-  }, []);
+    
+    // Track analytics
+    if (isSelecting) {
+      trackDomainSelection(domainId, domainLabel);
+    }
+  }, [selectedDomain, trackDomainSelection, focusedScanHit, debugLog]);
 
   const clearSelection = useCallback(() => {
     setSelectedDomain(null);
+    setFocusedScanHit(null);
   }, []);
+
+  const handleScanHitClick = useCallback((scanHit, index) => {
+    const scanHitId = scanHit.id || index;
+    
+    debugLog('Scan hit clicked', { 
+      scanHitId, 
+      title: scanHit.title, 
+      previousFocus: focusedScanHit,
+      domains: scanHit.domains 
+    });
+    
+    // Immediately clear any previous focus to prevent race conditions
+    setFocusedScanHit(null);
+    
+    // Use setTimeout to ensure state update completes before setting new focus
+    setTimeout(() => {
+      setFocusedScanHit(scanHitId);
+      debugLog('Focus set to scan hit', { scanHitId });
+    }, 0);
+    
+    // Track analytics
+    trackScanHitClick(scanHitId, scanHit.title, scanHit.domains);
+    
+    // Handle domain selection separately to avoid circular dependencies
+    if (scanHit.domains && scanHit.domains.length > 0) {
+      const domainId = scanHit.domains[0];
+      const domainLabel = DOMAIN_LABELS.find(d => d.id === domainId)?.label;
+      const isSelecting = selectedDomain !== domainId;
+      
+      debugLog('Domain selection triggered', { 
+        domainId, 
+        domainLabel, 
+        isSelecting,
+        previousDomain: selectedDomain 
+      });
+      
+      setSelectedDomain(prev => prev === domainId ? null : domainId);
+      
+      // Track domain selection analytics
+      if (isSelecting && domainLabel) {
+        trackDomainSelection(domainId, domainLabel);
+      }
+    }
+  }, [trackScanHitClick, trackDomainSelection, selectedDomain, focusedScanHit, debugLog]);
 
   // Memoize domain labels lookup to avoid recalculation on every render
   const selectedDomainLabel = useMemo(() => {
@@ -220,6 +300,7 @@ function RadialScanChart() {
         console.error('Full error:', err);
       } finally {
         setLoading(false);
+        setHasInitiallyLoaded(true);
       }
     };
     
@@ -232,48 +313,94 @@ function RadialScanChart() {
     
     // Small delay to ensure DOM is rendered
     const timeoutId = setTimeout(() => {
-      const newPositions = {};
+      const currentTime = performance.now();
       
-      scanHits.forEach((scanHit, index) => {
-        const textElement = textRefs.current[`text-${index}`];
-        if (textElement) {
-          try {
-            // Measure actual text dimensions and calculate precise position
-            const bbox = textElement.getBBox();
-            const angle = (index / scanHits.length) * 360;
-            const position = calculateTextPosition(bbox, angle);
-            
-            newPositions[index] = position;
-          } catch (error) {
-            // Fallback to original positioning if measurement fails
-            const angle = (index / scanHits.length) * 360;
-            const adjustedRadius = (CONFIG.scanHitRadius + CONFIG.positioning.desiredGap) - CONFIG.positioning.baseOffset;
-            const position = polarToCartesian(
-              CONFIG.centerX,
-              CONFIG.centerY,
-              adjustedRadius,
-              angle
-            );
-            newPositions[index] = position;
+      // Only track if enough time has passed since last render (throttling)
+      if (currentTime - lastRenderTimeRef.current > 100) {
+        const renderStartTime = performance.now();
+        const newPositions = {};
+        
+        scanHits.forEach((scanHit, index) => {
+          const textElement = textRefs.current[`text-${index}`];
+          if (textElement) {
+            try {
+              // Measure actual text dimensions and calculate precise position
+              const bbox = textElement.getBBox();
+              const angle = (index / scanHits.length) * 360;
+              const position = calculateTextPosition(bbox, angle);
+              
+              newPositions[index] = position;
+            } catch (error) {
+              // Fallback to original positioning if measurement fails
+              const angle = (index / scanHits.length) * 360;
+              const adjustedRadius = (CONFIG.scanHitRadius + CONFIG.positioning.desiredGap) - CONFIG.positioning.baseOffset;
+              const position = polarToCartesian(
+                CONFIG.centerX,
+                CONFIG.centerY,
+                adjustedRadius,
+                angle
+              );
+              newPositions[index] = position;
+            }
           }
+        });
+        
+        setLabelPositions(newPositions);
+        
+        // Track chart render performance only once per data load
+        if (renderCountRef.current === 0) {
+          const renderEndTime = performance.now();
+          const renderTime = renderEndTime - renderStartTime;
+          trackChartRender(renderTime, scanHits.length);
+          renderCountRef.current++;
         }
-      });
-      
-      setLabelPositions(newPositions);
+        
+        lastRenderTimeRef.current = currentTime;
+      }
     }, CONFIG.positioning.measurementDelay);
     
     return () => clearTimeout(timeoutId);
-  }, [scanHits]);
+  }, [scanHits, trackChartRender]);
 
   // ============================================================================
   // CONDITIONAL RENDERING
   // ============================================================================
-  if (loading) {
+  if (loading && !hasInitiallyLoaded) {
     return (
       <div className="flex items-center justify-center h-screen">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
-          <p className="text-gray-600">Loading scan hits from AITable...</p>
+        <div className="text-center max-w-md mx-auto p-6">
+          {/* Enhanced loading spinner */}
+          <div className="relative mb-6">
+            <div className="animate-spin rounded-full h-16 w-16 border-4 border-blue-200 border-t-blue-600 mx-auto"></div>
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="animate-pulse h-6 w-6 bg-blue-600 rounded-full"></div>
+            </div>
+          </div>
+          
+          {/* Loading messages */}
+          <h2 className="text-xl font-semibold text-gray-800 mb-2">Loading Futures Data</h2>
+          <p className="text-gray-600 mb-4">Fetching scan hits from AITable...</p>
+          
+          {/* Progress indicators */}
+          <div className="space-y-2 text-sm text-gray-500">
+            <div className="flex items-center justify-center">
+              <div className="animate-pulse h-2 w-2 bg-blue-500 rounded-full mr-2"></div>
+              Connecting to API
+            </div>
+            <div className="flex items-center justify-center">
+              <div className="animate-pulse h-2 w-2 bg-blue-500 rounded-full mr-2" style={{ animationDelay: '0.2s' }}></div>
+              Processing data
+            </div>
+            <div className="flex items-center justify-center">
+              <div className="animate-pulse h-2 w-2 bg-blue-500 rounded-full mr-2" style={{ animationDelay: '0.4s' }}></div>
+              Preparing visualization
+            </div>
+          </div>
+          
+          {/* Accessibility */}
+          <div className="sr-only" role="status" aria-live="polite">
+            Loading scan hits data from AITable API. Please wait.
+          </div>
         </div>
       </div>
     );
@@ -282,9 +409,46 @@ function RadialScanChart() {
   if (error) {
     return (
       <div className="flex items-center justify-center h-screen">
-        <div className="text-center text-red-600">
-          <p className="text-xl font-semibold mb-2">Error</p>
-          <p>{error}</p>
+        <div className="text-center max-w-md mx-auto p-6">
+          {/* Error icon */}
+          <div className="mx-auto flex items-center justify-center h-16 w-16 rounded-full bg-red-100 mb-6">
+            <svg
+              className="h-8 w-8 text-red-600"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              aria-hidden="true"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.732-.833-2.5 0L4.268 18.5c-.77.833.192 2.5 1.732 2.5z"
+              />
+            </svg>
+          </div>
+          
+          {/* Error messages */}
+          <h2 className="text-xl font-semibold text-red-800 mb-2">Unable to Load Data</h2>
+          <p className="text-red-600 mb-4">{error}</p>
+          
+          {/* Retry button */}
+          <button
+            onClick={() => window.location.reload()}
+            className="bg-red-600 hover:bg-red-700 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2"
+          >
+            Retry Loading
+          </button>
+          
+          {/* Help text */}
+          <p className="text-sm text-gray-500 mt-4">
+            If the problem persists, please check your internet connection and API credentials.
+          </p>
+          
+          {/* Accessibility */}
+          <div className="sr-only" role="alert" aria-live="assertive">
+            Error loading data: {error}
+          </div>
         </div>
       </div>
     );
@@ -295,16 +459,21 @@ function RadialScanChart() {
   // ============================================================================
   return (
     <div className="w-full max-w-[2000px] mx-auto p-8 bg-gray-50 rounded-lg relative">
-      <div className="text-center mb-8">
+      {/* Page Header with proper accessibility */}
+      <header className="text-center mb-8">
         <h1 className="text-3xl font-bold text-gray-800 mb-2">Futures Scanning Data</h1>
         <p className="text-base text-gray-600">Interactive radial visualization of education domains</p>
-      </div>
+        <p className="text-sm text-gray-500 mt-2">
+          Use your mouse or keyboard to interact with the chart. Click on domain labels or scan hit dots to filter scan hits.
+        </p>
+      </header>
       
       {/* Clear Selection Button */}
       {selectedDomain && (
         <button
           onClick={clearSelection}
-          className="absolute top-8 right-8 bg-gray-700 hover:bg-gray-800 text-white px-4 py-2 rounded-lg transition-colors duration-200 font-medium"
+          className="absolute top-8 right-8 bg-gray-700 hover:bg-gray-800 text-white px-4 py-2 rounded-lg transition-colors duration-200 font-medium focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
+          aria-label={`Clear selection of ${selectedDomainLabel} domain`}
         >
           Clear Selection
         </button>
@@ -315,29 +484,18 @@ function RadialScanChart() {
           viewBox="0 0 2000 2000" 
           className="max-w-full h-auto"
           xmlns="http://www.w3.org/2000/svg"
+          role="img"
+          aria-labelledby="chart-title chart-description"
+          aria-describedby="chart-instructions"
         >
-          {/* Invisible clickable areas for domain rings */}
-          <g id="domain-click-areas">
-            {DOMAIN_LABELS.map((domain) => {
-              const radius = CONFIG.domainRadii[domain.id];
-              return (
-                <circle
-                  key={`click-${domain.id}`}
-                  cx={CONFIG.centerX}
-                  cy={CONFIG.centerY}
-                  r={radius}
-                  fill="none"
-                  stroke="transparent"
-                  strokeWidth="30"
-                  className="cursor-pointer"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleDomainClick(domain.id);
-                  }}
-                />
-              );
-            })}
-          </g>
+          {/* Hidden descriptive text for screen readers */}
+          <title id="chart-title">Interactive Radial Scan Hits Chart</title>
+          <desc id="chart-description">
+            A radial chart showing education domain scan hits data. The chart displays seven concentric circles representing different education domains, with scan hit labels positioned around the outer perimeter. Each scan hit can belong to multiple domains.
+          </desc>
+          <desc id="chart-instructions">
+            Use your mouse to click on domain labels or scan hit dots to filter and interact with the chart elements.
+          </desc>
 
           {/* Concentric circles for each domain */}
           {DOMAIN_LABELS.map((domain) => {
@@ -380,6 +538,9 @@ function RadialScanChart() {
             width={200}
             height={200}
             className="transition-all duration-300"
+            role="img"
+            aria-label="Map of Africa silhouette"
+            alt="Central map of Africa showing the geographic focus of the education domain data"
           />
 
           {/* Domain labels positioned between rings at the bottom center (180 degrees) */}
@@ -437,13 +598,24 @@ function RadialScanChart() {
                   textAnchor="middle"
                   opacity={opacity}
                   fontWeight={fontWeight}
-                  className="cursor-pointer transition-all duration-300 select-none hover:fill-gray-800 hover:font-semibold"
+                  className="cursor-pointer transition-all duration-300 select-none hover:fill-gray-800 hover:font-semibold focus:outline-none focus:fill-blue-600 focus:font-semibold"
                   onMouseEnter={() => setHoveredDomain(domain.id)}
                   onMouseLeave={() => setHoveredDomain(null)}
                   onClick={(e) => {
                     e.stopPropagation();
                     handleDomainClick(domain.id);
                   }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      handleDomainClick(domain.id);
+                    }
+                  }}
+                  tabIndex={0}
+                  role="button"
+                  aria-label={`${domain.label} domain`}
+                  aria-pressed={selectedDomain === domain.id}
                 >
                   {line1}
                 </text>
@@ -463,6 +635,7 @@ function RadialScanChart() {
                       e.stopPropagation();
                       handleDomainClick(domain.id);
                     }}
+                    aria-hidden="true"
                   >
                     {line2}
                   </text>
@@ -513,6 +686,16 @@ function RadialScanChart() {
                       e.stopPropagation();
                       handleDomainClick(domainId);
                     }}
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`Scan hit ${scanHit.title} in ${DOMAIN_LABELS.find(d => d.id === domainId)?.label} domain`}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        handleDomainClick(domainId);
+                      }
+                    }}
                   />
                 );
               });
@@ -554,11 +737,22 @@ function RadialScanChart() {
                 ? cleanTitle.substring(0, 52) + "..."
                 : cleanTitle;
               
-              // Determine opacity based on selection
+              // Determine opacity and styling based on selection and focus state
               let opacity = 1.0;
+              let fillColor = "#4B5563";
+              let fontWeight = "normal";
+              
               if (selectedDomain) {
                 // If a domain is selected, only show labels for scan hits that belong to that domain
                 opacity = scanHit.domains.includes(selectedDomain) ? 1.0 : 0.2;
+              }
+              
+              // Check if this scan hit is focused
+              const isFocused = focusedScanHit === (scanHit.id || index);
+              if (isFocused) {
+                fillColor = "#1D4ED8"; // Blue color for focused scan hit
+                fontWeight = "semibold";
+                opacity = 1.0;
               }
               
               return (
@@ -568,19 +762,28 @@ function RadialScanChart() {
                   x={position.x}
                   y={position.y}
                   fontSize="10"
-                  fill="#4B5563"
+                  fill={fillColor}
+                  fontWeight={fontWeight}
                   textAnchor="middle" // Back to middle since we're positioning precisely
                   dominantBaseline="middle"
                   opacity={opacity}
                   transform={`rotate(${rotation}, ${position.x}, ${position.y})`}
-                  className="cursor-pointer transition-all duration-200 select-none hover:fill-gray-800 hover:font-semibold"
+                  className="cursor-pointer transition-all duration-200 select-none hover:fill-gray-800 hover:font-semibold focus:outline-none focus:fill-blue-600 focus:font-semibold"
                   onClick={(e) => {
                     e.stopPropagation();
-                    // If the scan hit has domains, select the first one
-                    if (scanHit.domains && scanHit.domains.length > 0) {
-                      handleDomainClick(scanHit.domains[0]);
+                    handleScanHitClick(scanHit, index);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      handleScanHitClick(scanHit, index);
                     }
                   }}
+                  tabIndex={0}
+                  role="button"
+                  aria-label={`Scan hit: ${truncatedTitle}${scanHit.domains.length > 1 ? ` (belongs to ${scanHit.domains.length} domains)` : ''}`}
+                  aria-pressed={isFocused}
                 >
                   {truncatedTitle}
                 </text>
@@ -590,14 +793,25 @@ function RadialScanChart() {
         </svg>
       </div>
 
+      {/* Status Messages with proper ARIA live regions */}
       {selectedDomainLabel && (
-        <div className="mt-6 p-4 bg-blue-100 rounded-md text-center text-sm text-blue-800 font-medium">
+        <div 
+          className="mt-6 p-4 bg-blue-100 rounded-md text-center text-sm text-blue-800 font-medium"
+          role="status"
+          aria-live="polite"
+          aria-label={`Domain filter applied`}
+        >
           Showing scan hits for: <strong>{selectedDomainLabel}</strong>
         </div>
       )}
       
       {hoveredDomainLabel && !selectedDomain && (
-        <div className="mt-6 p-4 bg-gray-200 rounded-md text-center text-sm text-gray-700 font-medium">
+        <div 
+          className="mt-6 p-4 bg-gray-200 rounded-md text-center text-sm text-gray-700 font-medium"
+          role="status"
+          aria-live="polite"
+          aria-label={`Hovering over domain`}
+        >
           Currently viewing: {hoveredDomainLabel}
         </div>
       )}
@@ -607,4 +821,5 @@ function RadialScanChart() {
 }
 
 export default RadialScanChart;
+
 

@@ -1,11 +1,14 @@
-import RadialScanChart from './RadialScanChart'
+import RadialScanChart from './RadialScanChart';
+import ErrorBoundary from './components/ErrorBoundary';
 
 function App() {
   return (
-    <div className="w-full min-h-screen flex justify-center items-center">
-      <RadialScanChart />
-    </div>
-  )
+    <ErrorBoundary>
+      <div className="w-full min-h-screen flex justify-center items-center">
+        <RadialScanChart />
+      </div>
+    </ErrorBoundary>
+  );
 }
 
 export default App
