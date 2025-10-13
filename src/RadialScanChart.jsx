@@ -63,6 +63,120 @@ const DOMAIN_LABELS = [
   { id: 'teacher-empowerment', label: 'Teacher Empowerment' }
 ];
 
+const STEEP_COLORS = {
+  'Social': '#00A6FB',
+  'Technological': '#7B68EE',
+  'Economic': '#FFB800',
+  'Environmental': '#00C853',
+  'Political & Legal': '#FF5252'
+};
+
+const DOMAIN_ORDER = [
+  'teaching-learning',     // Innermost (225px)
+  'equity-access',         // 300px
+  'curriculum-reform',     // 375px
+  'education-society',     // 450px
+  'technology-digital',    // 525px
+  'investment-governance', // 600px
+  'teacher-empowerment'    // Outermost (675px)
+];
+
+const STEEP_ORDER = [
+  'Social',
+  'Technological', 
+  'Economic',
+  'Environmental',
+  'Political & Legal'
+];
+
+/**
+ * Get color for STEEP category
+ * @param {string} category - STEEP category name
+ * @returns {string} Hex color code
+ */
+const getSteepColor = (category) => {
+  if (!category) return '#374151'; // Default gray if no category
+  
+  const normalizedCategory = category.trim();
+  return STEEP_COLORS[normalizedCategory] || '#374151'; // Default gray if unknown
+};
+
+/**
+ * Get the innermost domain (smallest radius) for a scan hit
+ * @param {Array} domains - Array of domain IDs
+ * @returns {string} Innermost domain ID
+ */
+const getInnermostDomain = (domains) => {
+  if (!domains || domains.length === 0) return 'teacher-empowerment';
+  
+  return domains.reduce((innermost, domain) => {
+    const currentIndex = DOMAIN_ORDER.indexOf(innermost);
+    const domainIndex = DOMAIN_ORDER.indexOf(domain);
+    return domainIndex < currentIndex ? domain : innermost;
+  });
+};
+
+/**
+ * Get the next outermost domain after the innermost one
+ * @param {Array} domains - Array of domain IDs
+ * @param {string} innermostDomain - The innermost domain
+ * @returns {string} Next outermost domain ID
+ */
+const getNextOutermostDomain = (domains, innermostDomain) => {
+  if (!domains || domains.length <= 1) return innermostDomain;
+  
+  const innermostIndex = DOMAIN_ORDER.indexOf(innermostDomain);
+  const remainingDomains = domains.filter(d => d !== innermostDomain);
+  
+  if (remainingDomains.length === 0) return innermostDomain;
+  
+  return remainingDomains.reduce((next, domain) => {
+    const currentIndex = DOMAIN_ORDER.indexOf(next);
+    const domainIndex = DOMAIN_ORDER.indexOf(domain);
+    return domainIndex < currentIndex ? domain : next;
+  });
+};
+
+/**
+ * Sort scan hits by STEEP category, then by innermost domain, then by next domain
+ * @param {Array} scanHits - Array of scan hit objects
+ * @returns {Array} Sorted array of scan hits
+ */
+const sortScanHits = (scanHits) => {
+  return [...scanHits].sort((a, b) => {
+    // Primary sort: STEEP Category
+    const steepA = a.steepCategory || 'Unknown';
+    const steepB = b.steepCategory || 'Unknown';
+    
+    const steepIndexA = STEEP_ORDER.indexOf(steepA);
+    const steepIndexB = STEEP_ORDER.indexOf(steepB);
+    
+    if (steepIndexA !== steepIndexB) {
+      return steepIndexA - steepIndexB;
+    }
+    
+    // Secondary sort: Innermost domain (smallest radius)
+    const innermostDomainA = getInnermostDomain(a.domains);
+    const innermostDomainB = getInnermostDomain(b.domains);
+    
+    const domainIndexA = DOMAIN_ORDER.indexOf(innermostDomainA);
+    const domainIndexB = DOMAIN_ORDER.indexOf(innermostDomainB);
+    
+    if (domainIndexA !== domainIndexB) {
+      return domainIndexA - domainIndexB;
+    }
+    
+    // Tertiary sort: Next outermost domain
+    const nextDomainA = getNextOutermostDomain(a.domains, innermostDomainA);
+    const nextDomainB = getNextOutermostDomain(b.domains, innermostDomainB);
+    
+    const nextIndexA = DOMAIN_ORDER.indexOf(nextDomainA);
+    const nextIndexB = DOMAIN_ORDER.indexOf(nextDomainB);
+    
+    return nextIndexA - nextIndexB;
+  });
+};
+
 /**
  * Converts polar coordinates to cartesian coordinates
  * @param {number} centerX - X coordinate of the center point
@@ -152,6 +266,7 @@ const transformData = (records) => {
       date: record.fields['Horizon'],
       source: record.fields['Link'],
       recNumber: record.fields['RecNumber'],
+      steepCategory: record.fields['STEEP Category'],
     };
   });
 };
@@ -268,11 +383,13 @@ function RadialScanChart() {
         setLoading(true);
         const records = await fetchScanHits();
         const transformed = transformData(records);
-        setScanHits(transformed);
+        const sorted = sortScanHits(transformed);
+        setScanHits(sorted);
         setError(null);
-        console.log('Fetched scan hits:', transformed);
-        console.log('Total records:', transformed.length);
-        console.log('Sample record:', transformed[0]);
+        console.log('Fetched scan hits:', sorted);
+        console.log('Total records:', sorted.length);
+        console.log('Sample record:', sorted[0]);
+        console.log('STEEP Categories found:', [...new Set(sorted.map(s => s.steepCategory))]);
       } catch (err) {
         setError('Failed to load scan hits. Please check your API credentials.');
         console.error('Full error:', err);
@@ -462,7 +579,7 @@ function RadialScanChart() {
   // MAIN RENDER
   // ============================================================================
   return (
-    <div className="w-full max-w-[2000px] mx-auto bg-white rounded-lg shadow-md relative">
+    <div className="w-full max-w-[2000px] mx-auto bg-white rounded-lg shadow-md relative px-4 sm:px-8 lg:px-20">
       {/* Integrated Header */}
       <header className="text-center p-4 pb-2">
         <h1 className="text-3xl font-bold text-gray-800 mb-2">Futures Scanning Data</h1>
@@ -482,6 +599,23 @@ function RadialScanChart() {
           Clear Selection
         </button>
       )}
+      
+      {/* STEEP Category Legend */}
+      <div className="absolute left-8 top-1/2 -translate-y-1/2 bg-white p-4 rounded-lg shadow-md border border-gray-200">
+        <h3 className="text-sm font-semibold text-gray-700 mb-3">STEEP Categories</h3>
+        <div className="space-y-2">
+          {Object.entries(STEEP_COLORS).map(([category, color]) => (
+            <div key={category} className="flex items-center gap-2">
+              <div 
+                className="w-4 h-4 rounded-full border border-gray-300"
+                style={{ backgroundColor: color }}
+                aria-hidden="true"
+              />
+              <span className="text-xs text-gray-600">{category}</span>
+            </div>
+          ))}
+        </div>
+      </div>
       
       {/* Chart Container */}
       <div className="p-4 pt-2 flex justify-center items-center">
@@ -682,7 +816,7 @@ function RadialScanChart() {
                     cx={position.x}
                     cy={position.y}
                     r={10}
-                    fill="#374151"
+                    fill={getSteepColor(scanHit.steepCategory)}
                     stroke="white"
                     strokeWidth={1.5}
                     opacity={opacity}
@@ -693,7 +827,7 @@ function RadialScanChart() {
                     }}
                     role="button"
                     tabIndex={0}
-                    aria-label={`Scan hit ${scanHit.title} in ${DOMAIN_LABELS.find(d => d.id === domainId)?.label} domain`}
+                    aria-label={`Scan hit ${scanHit.title} in ${DOMAIN_LABELS.find(d => d.id === domainId)?.label} domain - ${scanHit.steepCategory || 'No category'}`}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter' || e.key === ' ') {
                         e.preventDefault();
@@ -861,6 +995,23 @@ function RadialScanChart() {
                       );
                     })}
                   </div>
+                </div>
+              )}
+
+              {/* STEEP Category */}
+              {selectedScanHit.steepCategory && (
+                <div className="mb-6">
+                  <h3 className="text-sm font-semibold text-gray-700 mb-2">STEEP Category</h3>
+                  <span
+                    className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium border"
+                    style={{ 
+                      backgroundColor: getSteepColor(selectedScanHit.steepCategory) + '20',
+                      color: getSteepColor(selectedScanHit.steepCategory),
+                      borderColor: getSteepColor(selectedScanHit.steepCategory)
+                    }}
+                  >
+                    {selectedScanHit.steepCategory}
+                  </span>
                 </div>
               )}
 
