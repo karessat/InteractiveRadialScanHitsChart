@@ -383,7 +383,7 @@ function RadialScanChart() {
   const [focusedScanHit, setFocusedScanHit] = useState(null);
   const [selectedScanHit, setSelectedScanHit] = useState(null);
   const [hasInitiallyLoaded, setHasInitiallyLoaded] = useState(false);
-  const [showDefaultModal, setShowDefaultModal] = useState(true);
+  const [showDefaultModal, setShowDefaultModal] = useState(false);
   
   // State for dynamic positioning
   const [labelPositions, setLabelPositions] = useState({});
