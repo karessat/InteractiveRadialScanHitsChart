@@ -14,6 +14,8 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 
 // Third-party imports
 import axios from 'axios';
+import { zoom as d3Zoom, zoomIdentity } from 'd3-zoom';
+import { select as d3Select } from 'd3-selection';
 
 // Utility imports
 import { axiosWithRetry, withPerformanceMonitoring } from './utils/apiUtils';
@@ -354,6 +356,12 @@ function RadialScanChart() {
   const renderCountRef = useRef(0);
   const lastRenderTimeRef = useRef(0);
 
+  // Zoom and pan state
+  const [transform, setTransform] = useState({ x: 0, y: 0, scale: 1 });
+  const [showNavigationHelp, setShowNavigationHelp] = useState(false);
+  const svgRef = useRef(null);
+  const zoomBehaviorRef = useRef(null);
+
   // Analytics hook
   const { trackDomainSelection, trackScanHitClick, trackChartRender } = useChartAnalytics();
 
@@ -397,6 +405,45 @@ function RadialScanChart() {
 
   const closeModal = useCallback(() => {
     setSelectedScanHit(null);
+  }, []);
+
+  const toggleNavigationHelp = useCallback(() => {
+    setShowNavigationHelp(prev => !prev);
+  }, []);
+
+  const closeNavigationHelp = useCallback(() => {
+    setShowNavigationHelp(false);
+  }, []);
+
+  // Zoom control handlers
+  const handleZoomIn = useCallback((e) => {
+    if (e) e.stopPropagation();
+    if (svgRef.current && zoomBehaviorRef.current) {
+      d3Select(svgRef.current)
+        .transition()
+        .duration(300)
+        .call(zoomBehaviorRef.current.scaleBy, 1.5);
+    }
+  }, []);
+
+  const handleZoomOut = useCallback((e) => {
+    if (e) e.stopPropagation();
+    if (svgRef.current && zoomBehaviorRef.current) {
+      d3Select(svgRef.current)
+        .transition()
+        .duration(300)
+        .call(zoomBehaviorRef.current.scaleBy, 0.67);
+    }
+  }, []);
+
+  const handleResetZoom = useCallback((e) => {
+    if (e) e.stopPropagation();
+    if (svgRef.current && zoomBehaviorRef.current) {
+      d3Select(svgRef.current)
+        .transition()
+        .duration(300)
+        .call(zoomBehaviorRef.current.transform, zoomIdentity);
+    }
   }, []);
 
   const handleScanHitClick = useCallback((scanHit, index) => {
@@ -452,6 +499,34 @@ function RadialScanChart() {
     
     loadData();
   }, []);
+
+  // Initialize d3-zoom behavior - wait for data to be loaded and SVG to be rendered
+  useEffect(() => {
+    if (!svgRef.current || !hasInitiallyLoaded) {
+      return;
+    }
+
+    // Create zoom behavior with constraints
+    const zoom = d3Zoom()
+      .scaleExtent([0.5, 4]) // Min 0.5x, max 4x zoom
+      .on('zoom', (event) => {
+        // Update transform state
+        const { x, y, k } = event.transform;
+        setTransform({ x, y, scale: k });
+      });
+
+    // Apply zoom behavior to SVG
+    const svg = d3Select(svgRef.current);
+    svg.call(zoom);
+
+    // Store zoom behavior for programmatic control
+    zoomBehaviorRef.current = zoom;
+
+    // Cleanup
+    return () => {
+      svg.on('.zoom', null);
+    };
+  }, [hasInitiallyLoaded]); // Wait for data to be loaded
 
   // Two-pass positioning effect - measure and adjust after initial render
   useEffect(() => {
@@ -512,17 +587,90 @@ function RadialScanChart() {
     return () => clearTimeout(timeoutId);
   }, [scanHits, trackChartRender]);
 
-  // ESC key listener for closing modal
+  // ESC key listener for closing modals
   useEffect(() => {
     const handleKeyDown = (event) => {
-      if (event.key === 'Escape' && selectedScanHit) {
-        closeModal();
+      if (event.key === 'Escape') {
+        if (selectedScanHit) {
+          closeModal();
+        } else if (showNavigationHelp) {
+          closeNavigationHelp();
+        }
       }
     };
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [selectedScanHit, closeModal]);
+  }, [selectedScanHit, showNavigationHelp, closeModal, closeNavigationHelp]);
+
+  // Keyboard shortcuts for zoom and pan
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      // Don't interfere if user is typing in an input or modal is open
+      if (event.target.tagName === 'INPUT' || event.target.tagName === 'TEXTAREA') {
+        return;
+      }
+
+      const PAN_AMOUNT = 100;
+
+      switch (event.key) {
+        case '+':
+        case '=':
+          event.preventDefault();
+          handleZoomIn();
+          break;
+        case '-':
+          event.preventDefault();
+          handleZoomOut();
+          break;
+        case '0':
+          event.preventDefault();
+          handleResetZoom();
+          break;
+        case 'ArrowUp':
+          event.preventDefault();
+          if (svgRef.current && zoomBehaviorRef.current) {
+            const currentTransform = zoomIdentity
+              .translate(transform.x, transform.y + PAN_AMOUNT)
+              .scale(transform.scale);
+            d3Select(svgRef.current).call(zoomBehaviorRef.current.transform, currentTransform);
+          }
+          break;
+        case 'ArrowDown':
+          event.preventDefault();
+          if (svgRef.current && zoomBehaviorRef.current) {
+            const currentTransform = zoomIdentity
+              .translate(transform.x, transform.y - PAN_AMOUNT)
+              .scale(transform.scale);
+            d3Select(svgRef.current).call(zoomBehaviorRef.current.transform, currentTransform);
+          }
+          break;
+        case 'ArrowLeft':
+          event.preventDefault();
+          if (svgRef.current && zoomBehaviorRef.current) {
+            const currentTransform = zoomIdentity
+              .translate(transform.x + PAN_AMOUNT, transform.y)
+              .scale(transform.scale);
+            d3Select(svgRef.current).call(zoomBehaviorRef.current.transform, currentTransform);
+          }
+          break;
+        case 'ArrowRight':
+          event.preventDefault();
+          if (svgRef.current && zoomBehaviorRef.current) {
+            const currentTransform = zoomIdentity
+              .translate(transform.x - PAN_AMOUNT, transform.y)
+              .scale(transform.scale);
+            d3Select(svgRef.current).call(zoomBehaviorRef.current.transform, currentTransform);
+          }
+          break;
+        default:
+          break;
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [transform, handleZoomIn, handleZoomOut, handleResetZoom]);
 
   // Click outside modal to close it
   useEffect(() => {
@@ -641,16 +789,67 @@ function RadialScanChart() {
         <p className="text-base text-gray-600">Interactive scanning radar</p>
       </header>
       
-      {/* Clear Selection Button */}
-      {selectedDomain && (
+      {/* Zoom Control Buttons */}
+      <div className="absolute top-8 right-8 flex gap-3 items-center">
+        {/* Clear Selection Button */}
+        {selectedDomain && (
+          <button
+            onClick={clearSelection}
+            className="bg-gray-700 hover:bg-gray-800 text-white px-4 py-2 rounded-lg transition-colors duration-200 font-medium focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
+            aria-label={`Clear selection of ${selectedDomainLabel} domain`}
+          >
+            Clear Selection
+          </button>
+        )}
+        
+        {/* Zoom Controls */}
+        <div className="flex gap-1 bg-white rounded-lg shadow-md border border-gray-200 p-1">
+          <button
+            onClick={handleZoomIn}
+            className="w-10 h-10 flex items-center justify-center bg-white hover:bg-gray-100 text-gray-700 rounded transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            aria-label="Zoom in"
+            title="Zoom in (+)"
+          >
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+            </svg>
+          </button>
+          
+          <button
+            onClick={handleZoomOut}
+            className="w-10 h-10 flex items-center justify-center bg-white hover:bg-gray-100 text-gray-700 rounded transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            aria-label="Zoom out"
+            title="Zoom out (-)"
+          >
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
+            </svg>
+          </button>
+          
+          <button
+            onClick={handleResetZoom}
+            className="w-10 h-10 flex items-center justify-center bg-white hover:bg-gray-100 text-gray-700 rounded transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            aria-label="Reset zoom"
+            title="Reset view (0)"
+          >
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+            </svg>
+          </button>
+        </div>
+        
+        {/* Help Button - Outside zoom controls */}
         <button
-          onClick={clearSelection}
-          className="absolute top-8 right-8 bg-gray-700 hover:bg-gray-800 text-white px-4 py-2 rounded-lg transition-colors duration-200 font-medium focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
-          aria-label={`Clear selection of ${selectedDomainLabel} domain`}
+          onClick={toggleNavigationHelp}
+          className="w-12 h-12 flex items-center justify-center bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+          aria-label="Show navigation instructions"
+          title="Navigation help"
         >
-          Clear Selection
+          <svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
         </button>
-      )}
+      </div>
       
       {/* STEEP Category Legend */}
       <div className="absolute left-8 top-32 bg-white p-10 rounded-lg shadow-md border border-gray-200">
@@ -672,12 +871,14 @@ function RadialScanChart() {
       {/* Chart Container */}
       <div className="p-16 pt-8 pb-20 flex justify-center items-center">
         <svg 
+          ref={svgRef}
           viewBox="0 0 5000 5000" 
           className="max-w-full h-auto"
           xmlns="http://www.w3.org/2000/svg"
           role="img"
           aria-labelledby="chart-title chart-description"
           aria-describedby="chart-instructions"
+          style={{ touchAction: 'none', cursor: 'grab' }}
         >
           {/* Hidden descriptive text for screen readers */}
           <title id="chart-title">Interactive Radial Scan Hits Chart</title>
@@ -687,6 +888,9 @@ function RadialScanChart() {
           <desc id="chart-instructions">
             Use your mouse to click on domain labels or scan hit dots to filter and interact with the chart elements.
           </desc>
+
+          {/* Transform group for zoom and pan - all chart content goes inside this */}
+          <g transform={`translate(${transform.x}, ${transform.y}) scale(${transform.scale})`}>
 
           {/* Concentric circles for each domain */}
           {DOMAIN_LABELS.map((domain, index) => {
@@ -1085,6 +1289,9 @@ function RadialScanChart() {
             role="button"
             aria-label="Click center to clear domain selection"
           />
+
+          {/* End of transform group */}
+          </g>
         </svg>
       </div>
 
@@ -1207,6 +1414,152 @@ function RadialScanChart() {
                   </div>
                 </div>
               )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Navigation Help Modal */}
+      {showNavigationHelp && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
+          {/* Modal Content */}
+          <div className="modal-panel bg-white rounded-lg shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden">
+            {/* Header */}
+            <div className="flex items-start justify-between p-6 border-b border-gray-200">
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900">Navigation Guide</h2>
+                <p className="text-sm text-gray-600 mt-1">Learn how to explore the chart</p>
+              </div>
+              <button
+                onClick={closeNavigationHelp}
+                className="flex-shrink-0 p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                aria-label="Close navigation help"
+              >
+                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
+              {/* Mouse Controls */}
+              <div className="mb-6">
+                <h3 className="text-lg font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                  </svg>
+                  Mouse Controls
+                </h3>
+                <ul className="space-y-2 text-gray-600">
+                  <li className="flex items-start gap-2">
+                    <span className="text-blue-600 font-bold">•</span>
+                    <span><strong>Scroll wheel:</strong> Zoom in and out (centers on cursor position)</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-blue-600 font-bold">•</span>
+                    <span><strong>Click and drag:</strong> Pan around the chart</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-blue-600 font-bold">•</span>
+                    <span><strong>Click domain rings:</strong> Filter scan hits by domain</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-blue-600 font-bold">•</span>
+                    <span><strong>Click scan hit labels:</strong> View detailed information</span>
+                  </li>
+                </ul>
+              </div>
+
+              {/* Touch Controls */}
+              <div className="mb-6">
+                <h3 className="text-lg font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 11.5V14m0-2.5v-6a1.5 1.5 0 113 0m-3 6a1.5 1.5 0 00-3 0v2a7.5 7.5 0 0015 0v-5a1.5 1.5 0 00-3 0m-6-3V11m0-5.5v-1a1.5 1.5 0 013 0v1m0 0V11m0-5.5a1.5 1.5 0 013 0v3m0 0V11" />
+                  </svg>
+                  Touch Controls (Mobile/Tablet)
+                </h3>
+                <ul className="space-y-2 text-gray-600">
+                  <li className="flex items-start gap-2">
+                    <span className="text-blue-600 font-bold">•</span>
+                    <span><strong>Pinch:</strong> Zoom in and out</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-blue-600 font-bold">•</span>
+                    <span><strong>Swipe:</strong> Pan around the chart</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-blue-600 font-bold">•</span>
+                    <span><strong>Tap:</strong> Select domains or scan hits</span>
+                  </li>
+                </ul>
+              </div>
+
+              {/* Keyboard Shortcuts */}
+              <div className="mb-6">
+                <h3 className="text-lg font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
+                  </svg>
+                  Keyboard Shortcuts
+                </h3>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="flex items-center gap-2">
+                    <kbd className="px-2 py-1 bg-gray-100 border border-gray-300 rounded text-sm font-mono">+</kbd>
+                    <span className="text-sm text-gray-600">Zoom in</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <kbd className="px-2 py-1 bg-gray-100 border border-gray-300 rounded text-sm font-mono">-</kbd>
+                    <span className="text-sm text-gray-600">Zoom out</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <kbd className="px-2 py-1 bg-gray-100 border border-gray-300 rounded text-sm font-mono">0</kbd>
+                    <span className="text-sm text-gray-600">Reset view</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <kbd className="px-2 py-1 bg-gray-100 border border-gray-300 rounded text-sm font-mono">↑↓←→</kbd>
+                    <span className="text-sm text-gray-600">Pan</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <kbd className="px-2 py-1 bg-gray-100 border border-gray-300 rounded text-sm font-mono">Esc</kbd>
+                    <span className="text-sm text-gray-600">Close modals</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Button Controls */}
+              <div className="mb-4">
+                <h3 className="text-lg font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122" />
+                  </svg>
+                  Toolbar Buttons
+                </h3>
+                <ul className="space-y-2 text-gray-600">
+                  <li className="flex items-start gap-2">
+                    <span className="text-blue-600 font-bold">•</span>
+                    <span><strong>+ button:</strong> Zoom in</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-blue-600 font-bold">•</span>
+                    <span><strong>- button:</strong> Zoom out</span>
+                  </li>
+                  <li className="flex items-start gap-2">
+                    <span className="text-blue-600 font-bold">•</span>
+                    <span><strong>⟲ button:</strong> Reset to original view</span>
+                  </li>
+                </ul>
+              </div>
+
+              {/* Tips */}
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mt-6">
+                <h4 className="font-semibold text-blue-900 mb-2">💡 Tips</h4>
+                <ul className="text-sm text-blue-800 space-y-1">
+                  <li>• Zoom centers on your cursor position for precise exploration</li>
+                  <li>• Use the reset button if you get lost</li>
+                  <li>• All interactions work together with domain filtering</li>
+                </ul>
+              </div>
             </div>
           </div>
         </div>
