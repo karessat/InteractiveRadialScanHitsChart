@@ -384,6 +384,8 @@ function RadialScanChart() {
   const [selectedScanHit, setSelectedScanHit] = useState(null);
   const [hasInitiallyLoaded, setHasInitiallyLoaded] = useState(false);
   const [showDefaultModal, setShowDefaultModal] = useState(false);
+  const [panelWidth, setPanelWidth] = useState(600); // Default width in pixels
+  const [isResizing, setIsResizing] = useState(false);
   
   // State for dynamic positioning
   const [labelPositions, setLabelPositions] = useState({});
@@ -502,6 +504,30 @@ function RadialScanChart() {
     // Track analytics
     trackScanHitClick(scanHitId, scanHit.title, scanHit.domains);
   }, [trackScanHitClick, selectedScanHit, debugLog]);
+
+  // Panel resize handlers
+  const handleResizeStart = useCallback((e) => {
+    e.preventDefault();
+    setIsResizing(true);
+  }, []);
+
+  const handleResizeMove = useCallback((e) => {
+    if (!isResizing) return;
+    
+    // Calculate new width based on mouse position from right edge
+    const newWidth = window.innerWidth - e.clientX;
+    
+    // Constrain between min (300px) and max (80% of viewport width)
+    const minWidth = 300;
+    const maxWidth = window.innerWidth * 0.8;
+    const constrainedWidth = Math.max(minWidth, Math.min(newWidth, maxWidth));
+    
+    setPanelWidth(constrainedWidth);
+  }, [isResizing]);
+
+  const handleResizeEnd = useCallback(() => {
+    setIsResizing(false);
+  }, []);
 
   // Memoize domain labels lookup to avoid recalculation on every render
   const selectedDomainLabel = useMemo(() => {
@@ -725,6 +751,24 @@ function RadialScanChart() {
       return () => document.removeEventListener('click', handleClickOutside);
     }
   }, [selectedScanHit, selectedDomain, showDefaultModal, closeModal]);
+
+  // Panel resize event listeners
+  useEffect(() => {
+    if (isResizing) {
+      document.addEventListener('mousemove', handleResizeMove);
+      document.addEventListener('mouseup', handleResizeEnd);
+      // Prevent text selection while resizing
+      document.body.style.cursor = 'ew-resize';
+      document.body.style.userSelect = 'none';
+      
+      return () => {
+        document.removeEventListener('mousemove', handleResizeMove);
+        document.removeEventListener('mouseup', handleResizeEnd);
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+      };
+    }
+  }, [isResizing, handleResizeMove, handleResizeEnd]);
 
   // ============================================================================
   // CONDITIONAL RENDERING
@@ -1401,7 +1445,22 @@ function RadialScanChart() {
       {(selectedScanHit || selectedDomain || showDefaultModal) && (
         <div className="fixed inset-0 z-50 pointer-events-none">
           {/* Modal Content - Positioned to the right */}
-          <div className="modal-panel absolute right-0 top-0 h-full bg-white shadow-2xl border-l border-gray-200 w-[600px] max-w-[90vw] pointer-events-auto overflow-hidden">
+          <div 
+            className="modal-panel absolute right-0 top-0 h-full bg-white shadow-2xl border-l border-gray-200 pointer-events-auto overflow-hidden"
+            style={{ width: `${panelWidth}px` }}
+          >
+            {/* Resize Handle */}
+            <div
+              className="absolute left-0 top-0 bottom-0 w-1 cursor-ew-resize hover:bg-blue-500 transition-colors duration-150 group"
+              onMouseDown={handleResizeStart}
+              style={{ 
+                borderLeft: isResizing ? '3px solid #3b82f6' : '3px solid transparent',
+              }}
+            >
+              {/* Visual indicator on hover */}
+              <div className="absolute inset-y-0 left-0 w-1 bg-gray-300 opacity-0 group-hover:opacity-100 transition-opacity duration-150" />
+            </div>
+            
             {/* Header with close button */}
             <div className="flex items-start justify-between p-6 border-b border-gray-200">
               <h2 className="text-2xl font-semibold text-gray-900 pr-8 leading-tight">
