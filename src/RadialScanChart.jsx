@@ -56,13 +56,48 @@ const DOMAIN_NAME_MAPPING = {
 };
 
 const DOMAIN_LABELS = [
-  { id: 'teaching-learning', label: 'Teaching & Learning Models' },
-  { id: 'equity-access', label: 'Equity & Access' },
-  { id: 'curriculum-reform', label: 'Curriculum Reform' },
-  { id: 'education-society', label: 'Education & Society' },
-  { id: 'technology-digital', label: 'Technology & Digital Learning' },
-  { id: 'investment-governance', label: 'Investment & Governance' },
-  { id: 'teacher-empowerment', label: 'Teacher Empowerment' }
+  { 
+    id: 'teaching-learning', 
+    label: 'Teaching & Learning Models',
+    description: 'Innovative pedagogical approaches and learning methodologies that transform how knowledge is shared and acquired.',
+    futuresContext: 'The futures of education in Africa will see teaching evolve from traditional lecture-based models to collaborative, student-centered approaches that emphasize critical thinking, creativity, and problem-solving skills essential for the continent\'s development.'
+  },
+  { 
+    id: 'equity-access', 
+    label: 'Equity & Access',
+    description: 'Ensuring fair and inclusive educational opportunities for all learners regardless of background or circumstances.',
+    futuresContext: 'Future African education systems will prioritize universal access, breaking down barriers of geography, gender, disability, and socioeconomic status to create truly inclusive learning environments.'
+  },
+  { 
+    id: 'curriculum-reform', 
+    label: 'Curriculum Reform',
+    description: 'Modernizing educational content to reflect contemporary needs, local contexts, and future skills requirements.',
+    futuresContext: 'African curricula will increasingly integrate local knowledge systems, environmental sustainability, digital literacy, and entrepreneurial skills while maintaining cultural identity and relevance.'
+  },
+  { 
+    id: 'education-society', 
+    label: 'Education & Society',
+    description: 'The interconnected relationship between educational systems and broader societal development and transformation.',
+    futuresContext: 'Education will become a central driver of social cohesion, economic development, and democratic participation across African societies, fostering active citizenship and community engagement.'
+  },
+  { 
+    id: 'technology-digital', 
+    label: 'Technology & Digital Learning',
+    description: 'Leveraging digital tools and platforms to enhance learning experiences and expand educational reach.',
+    futuresContext: 'Digital technologies will democratize access to quality education across Africa, enabling personalized learning, remote education, and innovative teaching methods that transcend traditional classroom boundaries.'
+  },
+  { 
+    id: 'investment-governance', 
+    label: 'Investment & Governance',
+    description: 'Financial resources, policy frameworks, and institutional structures that support educational systems.',
+    futuresContext: 'Future governance models will emphasize transparent, accountable, and participatory decision-making in education, with innovative financing mechanisms ensuring sustainable investment in human capital.'
+  },
+  { 
+    id: 'teacher-empowerment', 
+    label: 'Teacher Empowerment',
+    description: 'Supporting educators as professionals and change agents in transforming educational outcomes.',
+    futuresContext: 'Teachers will evolve into learning facilitators, mentors, and community leaders, equipped with continuous professional development opportunities and recognition as key drivers of Africa\'s educational transformation.'
+  }
 ];
 
 const STEEP_COLORS = {
@@ -348,6 +383,7 @@ function RadialScanChart() {
   const [focusedScanHit, setFocusedScanHit] = useState(null);
   const [selectedScanHit, setSelectedScanHit] = useState(null);
   const [hasInitiallyLoaded, setHasInitiallyLoaded] = useState(false);
+  const [showDefaultModal, setShowDefaultModal] = useState(true);
   
   // State for dynamic positioning
   const [labelPositions, setLabelPositions] = useState({});
@@ -387,8 +423,9 @@ function RadialScanChart() {
       previousDomain: selectedDomain 
     });
     
-    // Clear any focused scan hit when clicking domain rings
+    // Clear any focused scan hit and selected scan hit when clicking domain rings
     setFocusedScanHit(null);
+    setSelectedScanHit(null);
     
     setSelectedDomain(prev => prev === domainId ? null : domainId);
     
@@ -405,6 +442,8 @@ function RadialScanChart() {
 
   const closeModal = useCallback(() => {
     setSelectedScanHit(null);
+    setSelectedDomain(null);
+    setShowDefaultModal(false);
   }, []);
 
   const toggleNavigationHelp = useCallback(() => {
@@ -591,7 +630,7 @@ function RadialScanChart() {
   useEffect(() => {
     const handleKeyDown = (event) => {
       if (event.key === 'Escape') {
-        if (selectedScanHit) {
+        if (selectedScanHit || selectedDomain || showDefaultModal) {
           closeModal();
         } else if (showNavigationHelp) {
           closeNavigationHelp();
@@ -601,7 +640,7 @@ function RadialScanChart() {
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [selectedScanHit, showNavigationHelp, closeModal, closeNavigationHelp]);
+  }, [selectedScanHit, selectedDomain, showDefaultModal, showNavigationHelp, closeModal, closeNavigationHelp]);
 
   // Keyboard shortcuts for zoom and pan
   useEffect(() => {
@@ -675,16 +714,16 @@ function RadialScanChart() {
   // Click outside modal to close it
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if (selectedScanHit && !event.target.closest('.modal-panel')) {
+      if ((selectedScanHit || selectedDomain || showDefaultModal) && !event.target.closest('.modal-panel')) {
         closeModal();
       }
     };
 
-    if (selectedScanHit) {
+    if (selectedScanHit || selectedDomain || showDefaultModal) {
       document.addEventListener('click', handleClickOutside);
       return () => document.removeEventListener('click', handleClickOutside);
     }
-  }, [selectedScanHit, closeModal]);
+  }, [selectedScanHit, selectedDomain, showDefaultModal, closeModal]);
 
   // ============================================================================
   // CONDITIONAL RENDERING
@@ -785,7 +824,7 @@ function RadialScanChart() {
     <div className="w-full max-w-[2400px] mx-auto bg-white rounded-lg shadow-md relative px-8 sm:px-12 lg:px-24">
       {/* Integrated Header */}
       <header className="text-center p-4 pb-2">
-        <h1 className="text-3xl font-bold text-blue-600 mb-2">UNICEF Future Fellows Scanning Highlights</h1>
+        <h1 className="text-4xl font-bold text-blue-600 mb-2">UNICEF Future Fellows Scanning Highlights</h1>
         <p className="text-base text-gray-600">Interactive scanning radar</p>
       </header>
       
@@ -936,10 +975,26 @@ function RadialScanChart() {
             y={CONFIG.centerY - 300}
             width={600}
             height={600}
-            className="transition-all duration-300"
+            className="transition-all duration-300 cursor-pointer hover:opacity-80"
             role="img"
             aria-label="Map of Africa silhouette"
             alt="Central map of Africa showing the geographic focus of the education domain data"
+            onClick={(e) => {
+              e.stopPropagation();
+              setSelectedScanHit(null);
+              setSelectedDomain(null);
+              setShowDefaultModal(true);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                e.stopPropagation();
+                setSelectedScanHit(null);
+                setSelectedDomain(null);
+                setShowDefaultModal(true);
+              }
+            }}
+            tabIndex={0}
           />
 
           {/* Single ring between center and first domain */}
@@ -1119,7 +1174,10 @@ function RadialScanChart() {
               let opacity = 1.0;
               let fillColor = "#4B5563";
               
-              if (selectedDomain) {
+              if (selectedScanHit) {
+                // If a scan hit is selected, dim all other scan hits
+                opacity = (scanHit.id || index) === (selectedScanHit.id || scanHits.findIndex(hit => hit.id === selectedScanHit.id)) ? 1.0 : 0.2;
+              } else if (selectedDomain) {
                 // If a domain is selected, only show labels for scan hits that belong to that domain
                 opacity = scanHit.domains.includes(selectedDomain) ? 1.0 : 0.2;
               }
@@ -1266,7 +1324,7 @@ function RadialScanChart() {
             );
           })}
 
-          {/* Clickable center circle to clear domain selection - rendered last to be on top */}
+          {/* Clickable center circle to show About modal - rendered last to be on top */}
           <circle
             cx={CONFIG.centerX}
             cy={CONFIG.centerY}
@@ -1276,18 +1334,22 @@ function RadialScanChart() {
             className="cursor-pointer transition-all duration-200 focus:outline-none"
             onClick={(e) => {
               e.stopPropagation();
-              clearSelection();
+              setSelectedScanHit(null);
+              setSelectedDomain(null);
+              setShowDefaultModal(true);
             }}
             onKeyDown={(e) => {
               if (e.key === 'Enter' || e.key === ' ') {
                 e.preventDefault();
                 e.stopPropagation();
-                clearSelection();
+                setSelectedScanHit(null);
+                setSelectedDomain(null);
+                setShowDefaultModal(true);
               }
             }}
-            tabIndex={selectedDomain ? 0 : -1}
+            tabIndex={0}
             role="button"
-            aria-label="Click center to clear domain selection"
+            aria-label="Click center to view About the Futures of Education in Africa"
           />
 
           {/* End of transform group */}
@@ -1320,15 +1382,17 @@ function RadialScanChart() {
         )}
       </div>
 
-      {/* Scan Hit Details Modal - Side Panel */}
-      {selectedScanHit && (
+      {/* Information Modal - Side Panel */}
+      {(selectedScanHit || selectedDomain || showDefaultModal) && (
         <div className="fixed inset-0 z-50 pointer-events-none">
           {/* Modal Content - Positioned to the right */}
-          <div className="modal-panel absolute right-0 top-0 h-full bg-white shadow-2xl border-l border-gray-200 w-96 max-w-[90vw] pointer-events-auto overflow-hidden">
+          <div className="modal-panel absolute right-0 top-0 h-full bg-white shadow-2xl border-l border-gray-200 w-[600px] max-w-[90vw] pointer-events-auto overflow-hidden">
             {/* Header with close button */}
             <div className="flex items-start justify-between p-6 border-b border-gray-200">
-              <h2 className="text-lg font-bold text-gray-900 pr-8 leading-tight">
-                {selectedScanHit.title}
+              <h2 className="text-2xl font-semibold text-gray-900 pr-8 leading-tight">
+                {selectedScanHit ? selectedScanHit.title : 
+                 selectedDomain ? DOMAIN_LABELS.find(d => d.id === selectedDomain)?.label :
+                 'About the Futures of Education in Africa'}
               </h2>
               <button
                 onClick={closeModal}
@@ -1343,76 +1407,200 @@ function RadialScanChart() {
 
             {/* Scrollable Content */}
             <div className="p-6 overflow-y-auto h-[calc(100vh-120px)]">
-              {/* Associated Domains */}
-              {selectedScanHit.domains && selectedScanHit.domains.length > 0 && (
-                <div className="mb-6">
-                  <h3 className="text-sm font-semibold text-gray-700 mb-3">Associated Domains</h3>
-                  <div className="flex flex-wrap gap-2">
-                    {selectedScanHit.domains.map((domainId) => {
-                      const domainLabel = DOMAIN_LABELS.find(d => d.id === domainId)?.label;
-                      return (
-                        <span
-                          key={domainId}
-                          className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
-                        >
-                          {domainLabel}
-                        </span>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
+              {selectedScanHit ? (
+                // Scan Hit Details Content
+                <>
+                  {/* Associated Domains */}
+                  {selectedScanHit.domains && selectedScanHit.domains.length > 0 && (
+                    <div className="mb-6">
+                      <h3 className="text-lg font-semibold text-gray-700 mb-3">Associated Domains</h3>
+                      <div className="flex flex-wrap gap-2">
+                        {selectedScanHit.domains.map((domainId) => {
+                          const domainLabel = DOMAIN_LABELS.find(d => d.id === domainId)?.label;
+                          return (
+                            <span
+                              key={domainId}
+                              className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800"
+                            >
+                              {domainLabel}
+                            </span>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
 
-              {/* STEEP Category */}
-              {selectedScanHit.steepCategory && (
-                <div className="mb-6">
-                  <h3 className="text-sm font-semibold text-gray-700 mb-2">STEEP Category</h3>
-                  <span
-                    className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium border"
-                    style={{ 
-                      backgroundColor: getSteepColor(selectedScanHit.steepCategory) + '20',
-                      color: getSteepColor(selectedScanHit.steepCategory),
-                      borderColor: getSteepColor(selectedScanHit.steepCategory)
-                    }}
-                  >
-                    {selectedScanHit.steepCategory}
-                  </span>
-                </div>
-              )}
+                  {/* STEEP Category */}
+                  {selectedScanHit.steepCategory && (
+                    <div className="mb-6">
+                      <h3 className="text-lg font-semibold text-gray-700 mb-2">STEEP Category</h3>
+                      <span
+                        className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium border"
+                        style={{ 
+                          backgroundColor: getSteepColor(selectedScanHit.steepCategory) + '20',
+                          color: getSteepColor(selectedScanHit.steepCategory),
+                          borderColor: getSteepColor(selectedScanHit.steepCategory)
+                        }}
+                      >
+                        {selectedScanHit.steepCategory}
+                      </span>
+                    </div>
+                  )}
 
-              {/* Date */}
-              {selectedScanHit.date && (
-                <div className="mb-6">
-                  <h3 className="text-sm font-semibold text-gray-700 mb-2">Horizon</h3>
-                  <p className="text-gray-600">{selectedScanHit.date}</p>
-                </div>
-              )}
+                  {/* Date */}
+                  {selectedScanHit.date && (
+                    <div className="mb-6">
+                      <h3 className="text-lg font-semibold text-gray-700 mb-2">Horizon</h3>
+                      <p className="text-gray-600">{selectedScanHit.date}</p>
+                    </div>
+                  )}
 
-              {/* Source */}
-              {selectedScanHit.source && (
-                <div className="mb-6">
-                  <h3 className="text-sm font-semibold text-gray-700 mb-2">Source</h3>
-                  <a
-                    href={selectedScanHit.source}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-blue-600 hover:text-blue-800 underline break-all"
-                  >
-                    {selectedScanHit.source}
-                  </a>
-                </div>
-              )}
+                  {/* Source */}
+                  {selectedScanHit.source && (
+                    <div className="mb-6">
+                      <h3 className="text-lg font-semibold text-gray-700 mb-2">Source</h3>
+                      <a
+                        href={selectedScanHit.source}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-600 hover:text-blue-800 underline break-all"
+                      >
+                        {selectedScanHit.source}
+                      </a>
+                    </div>
+                  )}
 
-              {/* Description */}
-              {selectedScanHit.description && (
-                <div>
-                  <h3 className="text-sm font-semibold text-gray-700 mb-3">Description</h3>
-                  <div className="prose prose-sm max-w-none">
-                    <p className="text-gray-600 leading-relaxed whitespace-pre-wrap">
-                      {selectedScanHit.description}
+                  {/* Description */}
+                  {selectedScanHit.description && (
+                    <div>
+                      <h3 className="text-lg font-semibold text-gray-700 mb-3">Description</h3>
+                      <div className="prose prose-sm max-w-none">
+                        <p className="text-gray-600 leading-relaxed whitespace-pre-wrap">
+                          {selectedScanHit.description}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </>
+              ) : selectedDomain ? (
+                // Domain Information Content
+                (() => {
+                  const domain = DOMAIN_LABELS.find(d => d.id === selectedDomain);
+                  const domainScanHits = scanHits.filter(hit => hit.domains.includes(selectedDomain));
+                  const steepBreakdown = domainScanHits.reduce((acc, hit) => {
+                    const category = hit.steepCategory || 'Unknown';
+                    acc[category] = (acc[category] || 0) + 1;
+                    return acc;
+                  }, {});
+
+                  return (
+                    <>
+                      {/* Domain Description */}
+                      <div className="mb-6">
+                        <h3 className="text-lg font-semibold text-gray-700 mb-3">Domain Overview</h3>
+                        <p className="text-gray-600 leading-relaxed mb-4">
+                          {domain?.description}
+                        </p>
+                      </div>
+
+                      {/* Scan Hit Count */}
+                      <div className="mb-6">
+                        <h3 className="text-lg font-semibold text-gray-700 mb-3">Scan Hits</h3>
+                        <div className="bg-blue-50 p-4 rounded-lg">
+                          <p className="text-2xl font-bold text-blue-800 mb-1">{domainScanHits.length}</p>
+                          <p className="text-sm text-blue-600">scan hits in this domain</p>
+                        </div>
+                      </div>
+
+                      {/* STEEP Category Breakdown */}
+                      {Object.keys(steepBreakdown).length > 0 && (
+                        <div className="mb-6">
+                          <h3 className="text-lg font-semibold text-gray-700 mb-3">STEEP Category Distribution</h3>
+                          <div className="space-y-2">
+                            {Object.entries(steepBreakdown).map(([category, count]) => (
+                              <div key={category} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                                <div className="flex items-center gap-3">
+                                  <div 
+                                    className="w-4 h-4 rounded-full"
+                                    style={{ backgroundColor: getSteepColor(category) }}
+                                  />
+                                  <span className="text-gray-700 font-medium">{category}</span>
+                                </div>
+                                <span className="text-gray-600 font-semibold">{count}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Futures Context */}
+                      <div className="mb-6">
+                        <h3 className="text-lg font-semibold text-gray-700 mb-3">Futures of Education in Africa</h3>
+                        <div className="bg-green-50 p-4 rounded-lg border-l-4 border-green-400">
+                          <p className="text-gray-700 leading-relaxed">
+                            {domain?.futuresContext}
+                          </p>
+                        </div>
+                      </div>
+                    </>
+                  );
+                })()
+              ) : (
+                // Default About Content
+                <>
+                  <div className="mb-6">
+                    <h3 className="text-lg font-semibold text-gray-700 mb-3">Overview</h3>
+                    <p className="text-gray-600 leading-relaxed mb-4">
+                      This interactive radar visualization presents key insights from UNICEF's Future Fellows Scanning initiative, 
+                      exploring emerging trends and potential futures of education across Africa. The visualization maps scan hits 
+                      across seven critical education domains, categorized by STEEP analysis (Social, Technological, Economic, 
+                      Environmental, Political & Legal factors).
                     </p>
                   </div>
-                </div>
+
+                  <div className="mb-6">
+                    <h3 className="text-lg font-semibold text-gray-700 mb-3">Scan Hits Overview</h3>
+                    <div className="bg-blue-50 p-4 rounded-lg">
+                      <p className="text-2xl font-bold text-blue-800 mb-1">{scanHits.length}</p>
+                      <p className="text-sm text-blue-600">scan hits selected from a total of 141 scan hits submitted by Futures Fellows</p>
+                    </div>
+                  </div>
+
+                  <div className="mb-6">
+                    <h3 className="text-lg font-semibold text-gray-700 mb-3">How to Use This Tool</h3>
+                    <ul className="text-gray-600 space-y-2">
+                      <li className="flex items-start gap-2">
+                        <span className="text-blue-600 font-bold">•</span>
+                        <span><strong>Click domain rings</strong> to filter scan hits and learn about each education domain</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <span className="text-blue-600 font-bold">•</span>
+                        <span><strong>Click scan hit labels</strong> to view detailed information about specific trends</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <span className="text-blue-600 font-bold">•</span>
+                        <span><strong>Use zoom and pan controls</strong> to explore the visualization in detail</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <span className="text-blue-600 font-bold">•</span>
+                        <span><strong>Refer to STEEP categories</strong> to understand the nature of each trend</span>
+                      </li>
+                    </ul>
+                  </div>
+
+                  <div className="mb-6">
+                    <h3 className="text-lg font-semibold text-gray-700 mb-3">About Futures Thinking</h3>
+                    <div className="bg-purple-50 p-4 rounded-lg border-l-4 border-purple-400">
+                      <p className="text-gray-700 leading-relaxed">
+                        Futures thinking recognizes that the future is not predetermined but shaped by our choices today. 
+                        By exploring multiple potential futures of education in Africa, we can better prepare for uncertainty, 
+                        identify opportunities for positive change, and make more informed decisions about educational policy 
+                        and practice. Each scan hit represents a signal of change that could influence how education evolves 
+                        across the continent.
+                      </p>
+                    </div>
+                  </div>
+                </>
               )}
             </div>
           </div>
