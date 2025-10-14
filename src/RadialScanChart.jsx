@@ -495,7 +495,8 @@ function RadialScanChart() {
       domains: scanHit.domains 
     });
     
-    // Set the selected scan hit to show in modal
+    // Clear domain selection and set the selected scan hit to show in modal
+    setSelectedDomain(null);
     setSelectedScanHit(scanHit);
     
     // Track analytics
@@ -945,7 +946,10 @@ function RadialScanChart() {
             let strokeWidth = CONFIG.ringWidth;
             let opacity = 1.0;
             
-            if (isSelected || isInnerBoundaryOfSelected) {
+            if (selectedScanHit) {
+              // If a scan hit is selected, dim all domain rings
+              opacity = 0.2;
+            } else if (isSelected || isInnerBoundaryOfSelected) {
               strokeColor = '#1f2937'; // Darker gray-800 for selected domain boundaries
               strokeWidth = 6; // Thicker border for selected domain boundaries
               opacity = 1.0;
@@ -1005,7 +1009,7 @@ function RadialScanChart() {
             fill="none"
             stroke={selectedDomain === 'teaching-learning' ? '#1f2937' : CONFIG.ringColor}
             strokeWidth={selectedDomain === 'teaching-learning' ? 6 : CONFIG.ringWidth}
-            opacity={selectedDomain && selectedDomain !== 'teaching-learning' ? 0.3 : 1.0}
+            opacity={selectedScanHit ? 0.2 : (selectedDomain && selectedDomain !== 'teaching-learning' ? 0.3 : 1.0)}
             className="transition-all duration-300"
           />
 
@@ -1019,6 +1023,13 @@ function RadialScanChart() {
               const innerPoint = polarToCartesian(CONFIG.centerX, CONFIG.centerY, 0, segmentStartAngle);
               const outerPoint = polarToCartesian(CONFIG.centerX, CONFIG.centerY, CONFIG.scanHitRadius, segmentStartAngle);
               
+              // Determine opacity for radiating lines
+              let lineOpacity = 0.7; // Default opacity
+              if (selectedScanHit) {
+                // If a scan hit is selected, only show the line for that scan hit
+                lineOpacity = (scanHit.id || index) === (selectedScanHit.id || scanHits.findIndex(hit => hit.id === selectedScanHit.id)) ? 0.7 : 0.1;
+              }
+              
               return (
                 <line
                   key={`boundary-${scanHit.id || index}`}
@@ -1028,7 +1039,7 @@ function RadialScanChart() {
                   y2={outerPoint.y}
                   stroke="#e5e7eb"
                   strokeWidth="3"
-                  opacity="0.7"
+                  opacity={lineOpacity}
                   className="transition-opacity duration-300"
                 />
               );
@@ -1063,7 +1074,11 @@ function RadialScanChart() {
                 
                 // Determine opacity based on selection
                 let opacity = 0.6; // Semi-transparent by default
-                if (selectedDomain) {
+                
+                if (selectedScanHit) {
+                  // If a scan hit is selected, only show segments for that specific scan hit
+                  opacity = (scanHit.id || index) === (selectedScanHit.id || scanHits.findIndex(hit => hit.id === selectedScanHit.id)) ? 1.0 : 0.1;
+                } else if (selectedDomain) {
                   // Show segments for the selected domain ring at full opacity
                   // Dim segments for other domain rings
                   opacity = domainId === selectedDomain ? 1.0 : 0.2;

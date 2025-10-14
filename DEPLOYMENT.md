@@ -48,9 +48,11 @@ This project is now Heroku-ready! Here's how to deploy it:
 
 ### Build Information
 - **Build Command**: `npm run build`
+- **Start Command**: `npm start` (builds and serves with `serve`)
 - **Output Directory**: `dist`
 - **Node Version**: >=16.0.0
 - **Static Assets**: All assets are properly bundled and optimized
+- **Production Server**: Uses `serve` package for optimal static file serving
 
 ### Performance Optimizations Included
 - Code splitting with vendor chunks

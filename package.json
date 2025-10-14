@@ -22,7 +22,7 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview --port $PORT --host 0.0.0.0",
-    "start": "npm run build && npm run preview",
+    "start": "npm run build && serve -s dist -l $PORT",
     "lint": "eslint . --ext js,jsx --report-unused-disable-directives --max-warnings 0",
     "lint:fix": "eslint . --ext js,jsx --fix",
     "format": "prettier --write .",
@@ -35,7 +35,8 @@
     "d3-selection": "^3.0.0",
     "d3-zoom": "^3.0.0",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react-dom": "^18.3.1",
+    "serve": "^14.2.1"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.1.14",
@@ -48,8 +49,7 @@
     "postcss": "^8.5.6",
     "prettier": "^3.2.5",
     "tailwindcss": "^4.1.14",
-    "terser": "^5.44.0",
-    "vite": "^6.0.11"
+    "terser": "^5.44.0"
   },
   "engines": {
     "node": ">=16.0.0",
