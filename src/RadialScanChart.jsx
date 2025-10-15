@@ -991,8 +991,17 @@ function RadialScanChart() {
             let opacity = 1.0;
             
             if (selectedScanHit) {
-              // If a scan hit is selected, dim all domain rings
-              opacity = 0.2;
+              // If a scan hit is selected, check if this domain is associated with it
+              const isAssociatedDomain = selectedScanHit.domains && selectedScanHit.domains.includes(domain.id);
+              if (isAssociatedDomain) {
+                // Highlight associated domains
+                strokeColor = '#1f2937'; // Darker gray-800
+                strokeWidth = 6; // Thicker border
+                opacity = 1.0;
+              } else {
+                // Dim unassociated domains
+                opacity = 0.2;
+              }
             } else if (isSelected || isInnerBoundaryOfSelected) {
               strokeColor = '#1f2937'; // Darker gray-800 for selected domain boundaries
               strokeWidth = 6; // Thicker border for selected domain boundaries
@@ -1051,9 +1060,21 @@ function RadialScanChart() {
             cy={CONFIG.centerY}
             r={225}
             fill="none"
-            stroke={selectedDomain === 'teaching-learning' ? '#1f2937' : CONFIG.ringColor}
-            strokeWidth={selectedDomain === 'teaching-learning' ? 6 : CONFIG.ringWidth}
-            opacity={selectedScanHit ? 0.2 : (selectedDomain && selectedDomain !== 'teaching-learning' ? 0.3 : 1.0)}
+            stroke={
+              selectedScanHit 
+                ? (selectedScanHit.domains && selectedScanHit.domains.includes('teaching-learning') ? '#1f2937' : CONFIG.ringColor)
+                : (selectedDomain === 'teaching-learning' ? '#1f2937' : CONFIG.ringColor)
+            }
+            strokeWidth={
+              selectedScanHit
+                ? (selectedScanHit.domains && selectedScanHit.domains.includes('teaching-learning') ? 6 : CONFIG.ringWidth)
+                : (selectedDomain === 'teaching-learning' ? 6 : CONFIG.ringWidth)
+            }
+            opacity={
+              selectedScanHit 
+                ? (selectedScanHit.domains && selectedScanHit.domains.includes('teaching-learning') ? 1.0 : 0.2)
+                : (selectedDomain && selectedDomain !== 'teaching-learning' ? 0.3 : 1.0)
+            }
             className="transition-all duration-300"
           />
 
@@ -1321,7 +1342,11 @@ function RadialScanChart() {
             
             let opacity = 1.0;
             
-            if (isSelected) {
+            if (selectedScanHit) {
+              // If a scan hit is selected, check if this domain is associated with it
+              const isAssociatedDomain = selectedScanHit.domains && selectedScanHit.domains.includes(domain.id);
+              opacity = isAssociatedDomain ? 1.0 : 0.2;
+            } else if (isSelected) {
               opacity = 1.0;
             } else if (isOtherSelected) {
               opacity = 0.3;
