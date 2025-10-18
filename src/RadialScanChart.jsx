@@ -1320,7 +1320,7 @@ function RadialScanChart() {
                   aria-pressed={isFocused}
                 >
                   {showStar && !isRightSide && (
-                    <tspan fontSize="32" fill="#FFD700" dx="0" dy="0">
+                    <tspan fontSize="48" fill="#FFD700" dx="0" dy="0">
                       ⭐
                     </tspan>
                   )}
@@ -1328,7 +1328,7 @@ function RadialScanChart() {
                     {truncatedTitle}
                   </tspan>
                   {showStar && isRightSide && (
-                    <tspan fontSize="32" fill="#FFD700" dx="8" dy="0">
+                    <tspan fontSize="48" fill="#FFD700" dx="8" dy="0">
                       ⭐
                     </tspan>
                   )}
@@ -1356,12 +1356,35 @@ function RadialScanChart() {
             // Position label at the midpoint between previous ring and current ring
             const labelRadius = previousRadius + (currentRadius - previousRadius) / 2;
             
-            const position = polarToCartesian(
+            // Default position at bottom center (180 degrees)
+            let position = polarToCartesian(
               CONFIG.centerX, 
               CONFIG.centerY, 
               labelRadius, 
               180
             );
+            
+            // If a scan hit is selected and this domain is associated with it, move label near the scan hit's segment
+            if (selectedScanHit && selectedScanHit.domains && selectedScanHit.domains.includes(domain.id)) {
+              // Find the scan hit's index to get its angle
+              const scanHitIndex = scanHits.findIndex(hit => hit.id === selectedScanHit.id);
+              if (scanHitIndex !== -1) {
+                const anglePerHit = 360 / scanHits.length;
+                const segmentStartAngle = (scanHitIndex / scanHits.length) * 360;
+                const segmentCenterAngle = segmentStartAngle + (anglePerHit / 2);
+                
+                // Position label near the scan hit's segment but offset slightly to avoid overlapping colored segments
+                // Use a small offset angle to position the label adjacent to the segment
+                const offsetAngle = segmentCenterAngle + (segmentCenterAngle > 180 ? -15 : 15); // 15 degree offset
+                
+                position = polarToCartesian(
+                  CONFIG.centerX,
+                  CONFIG.centerY,
+                  labelRadius,
+                  offsetAngle
+                );
+              }
+            }
             
             // Split long labels into multiple lines
             const splitLabel = domain.label.split(' ');
@@ -1395,7 +1418,7 @@ function RadialScanChart() {
                   textAnchor="middle"
                   opacity={opacity}
                   fontWeight="bold"
-                  className="cursor-pointer transition-all duration-300 select-none hover:fill-gray-800 focus:outline-none focus:fill-blue-600"
+                  className="cursor-pointer transition-all duration-500 ease-in-out select-none hover:fill-gray-800 focus:outline-none focus:fill-blue-600"
                   onMouseEnter={() => setHoveredDomain(domain.id)}
                   onMouseLeave={() => setHoveredDomain(null)}
                   onClick={(e) => {
@@ -1425,7 +1448,7 @@ function RadialScanChart() {
                     textAnchor="middle"
                     opacity={opacity}
                     fontWeight="bold"
-                    className="cursor-pointer transition-all duration-300 select-none hover:fill-gray-800"
+                    className="cursor-pointer transition-all duration-500 ease-in-out select-none hover:fill-gray-800"
                     onMouseEnter={() => setHoveredDomain(domain.id)}
                     onMouseLeave={() => setHoveredDomain(null)}
                     onClick={(e) => {
