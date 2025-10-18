@@ -387,7 +387,6 @@ function RadialScanChart() {
   const [showDefaultModal, setShowDefaultModal] = useState(false);
   const [panelWidth, setPanelWidth] = useState(600); // Default width in pixels
   const [isResizing, setIsResizing] = useState(false);
-  const [showLegend, setShowLegend] = useState(typeof window !== 'undefined' ? window.innerWidth >= 640 : true);
   
   // State for dynamic positioning
   const [labelPositions, setLabelPositions] = useState({});
@@ -869,131 +868,124 @@ function RadialScanChart() {
   // MAIN RENDER
   // ============================================================================
   return (
-    <div className="w-full max-w-[2400px] mx-auto bg-white rounded-lg shadow-md relative px-4 sm:px-8 lg:px-24">
+    <div className="w-full max-w-[2400px] mx-auto bg-white rounded-lg shadow-md overflow-x-hidden">
       {/* Integrated Header */}
-      <header className="text-center p-4 pb-2">
+      <header className="text-center p-4 pb-4 sm:pb-6 lg:pb-8">
         <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-blue-600 mb-2">UNICEF Youth Foresight Fellows Scanning Highlights</h1>
         <p className="text-sm sm:text-base text-gray-600">Interactive scanning radar</p>
       </header>
       
-      {/* Zoom Control Buttons */}
-      <div className="fixed bottom-20 right-4 md:absolute md:top-8 md:right-8 flex gap-2 md:gap-3 items-center z-40">
-        {/* Clear Selection Button */}
-        {selectedDomain && (
-          <button
-            onClick={clearSelection}
-            className="bg-gray-700 hover:bg-gray-800 text-white px-3 py-2 sm:px-4 sm:py-2 rounded-lg transition-colors duration-200 text-sm sm:text-base font-medium focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
-            aria-label={`Clear selection of ${selectedDomainLabel} domain`}
-          >
-            Clear Selection
-          </button>
-        )}
+      {/* Main Content Grid */}
+      <div className="grid grid-cols-1 lg:grid-cols-[auto_1fr_auto] gap-2 sm:gap-4 p-2 sm:p-4 lg:p-8">
         
-        {/* Zoom Controls */}
-        <div className="flex gap-1 bg-white rounded-lg shadow-md border border-gray-200 p-1">
-          <button
-            onClick={handleZoomIn}
-            className="w-12 h-12 md:w-10 md:h-10 flex items-center justify-center bg-white hover:bg-gray-100 text-gray-700 rounded transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            aria-label="Zoom in"
-            title="Zoom in (+)"
-          >
-            <svg className="w-6 h-6 md:w-5 md:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
-            </svg>
-          </button>
-          
-          <button
-            onClick={handleZoomOut}
-            className="w-12 h-12 md:w-10 md:h-10 flex items-center justify-center bg-white hover:bg-gray-100 text-gray-700 rounded transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            aria-label="Zoom out"
-            title="Zoom out (-)"
-          >
-            <svg className="w-6 h-6 md:w-5 md:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
-            </svg>
-          </button>
-          
-          <button
-            onClick={handleResetZoom}
-            className="w-12 h-12 md:w-10 md:h-10 flex items-center justify-center bg-white hover:bg-gray-100 text-gray-700 rounded transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
-            aria-label="Reset zoom"
-            title="Reset view (0)"
-          >
-            <svg className="w-6 h-6 md:w-5 md:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-            </svg>
-          </button>
-        </div>
-        
-        {/* Help Button - Outside zoom controls */}
-        <button
-          onClick={toggleNavigationHelp}
-          className="w-14 h-14 md:w-12 md:h-12 flex items-center justify-center bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-          aria-label="Show navigation instructions"
-          title="Navigation help"
-        >
-          <svg className="w-8 h-8 md:w-7 md:h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-        </button>
-      </div>
-      
-      {/* Legend Toggle Button - Mobile Only */}
-      <button
-        onClick={() => setShowLegend(!showLegend)}
-        className="fixed bottom-4 left-4 lg:hidden z-40 bg-white rounded-full p-3 shadow-lg border border-gray-200 hover:bg-gray-50 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
-        aria-label={showLegend ? "Hide legend" : "Show legend"}
-        title={showLegend ? "Hide legend" : "Show legend"}
-      >
-        <svg className="w-6 h-6 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
-        </svg>
-      </button>
-      
-      {/* STEEP Category Legend */}
-      {showLegend && (
-        <div className="fixed lg:absolute left-4 bottom-16 lg:left-8 lg:top-32 lg:bottom-auto bg-white p-6 lg:p-10 rounded-lg shadow-md border border-gray-200 max-w-[90vw] lg:max-w-none z-30">
-          <h3 className="text-xl lg:text-2xl font-semibold text-gray-700 mb-4 lg:mb-6">STEEP Categories</h3>
-          <div className="space-y-3 lg:space-y-5">
+        {/* STEEP Category Legend - Left column on desktop, below chart on mobile */}
+        <div className="order-2 lg:order-1 bg-white p-3 sm:p-4 lg:p-6 rounded-lg shadow-md border border-gray-200 self-start">
+          <h3 className="text-sm sm:text-base lg:text-lg xl:text-xl font-semibold text-gray-700 mb-2 sm:mb-3 lg:mb-4">
+            STEEP Categories
+          </h3>
+          <div className="space-y-2 lg:space-y-3">
             {Object.entries(STEEP_COLORS).map(([category, color]) => (
-              <div key={category} className="flex items-center gap-3 lg:gap-4">
+              <div key={category} className="flex items-center gap-2 lg:gap-3">
                 <div 
-                  className="w-6 h-6 lg:w-8 lg:h-8 rounded-full border border-gray-300 flex-shrink-0"
+                  className="w-4 h-4 lg:w-6 lg:h-6 rounded-full border border-gray-300 flex-shrink-0"
                   style={{ backgroundColor: color }}
                   aria-hidden="true"
                 />
-                <span className="text-sm lg:text-lg text-gray-600 font-medium">{category}</span>
+                <span className="text-xs lg:text-sm text-gray-600 font-medium">{category}</span>
               </div>
             ))}
           </div>
           
           {/* Participant-identified stars legend */}
-          <div className="mt-6 lg:mt-8 pt-4 lg:pt-6 border-t border-gray-200">
-            <div className="flex items-center gap-3 lg:gap-4">
-              <svg width="20" height="20" viewBox="0 0 24 24" className="text-yellow-500 flex-shrink-0 lg:w-6 lg:h-6">
+          <div className="mt-4 lg:mt-6 pt-3 lg:pt-4 border-t border-gray-200">
+            <div className="flex items-center gap-2 lg:gap-3">
+              <svg width="16" height="16" viewBox="0 0 24 24" className="text-yellow-500 flex-shrink-0 lg:w-5 lg:h-5">
                 <path 
                   d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" 
                   fill="currentColor"
                 />
               </svg>
-              <span className="text-sm lg:text-lg text-gray-600 font-medium">Participant-identified signals</span>
+              <span className="text-xs lg:text-sm text-gray-600 font-medium">Participant-identified signals</span>
             </div>
           </div>
         </div>
-      )}
-      
-      {/* Chart Container */}
-      <div className="p-4 sm:p-8 lg:p-16 pt-4 sm:pt-6 lg:pt-8 pb-12 sm:pb-16 lg:pb-20 flex justify-center items-center">
-        <svg 
-          ref={svgRef}
-          viewBox="0 0 5000 5000" 
-          className="max-w-full h-auto"
-          xmlns="http://www.w3.org/2000/svg"
-          role="img"
-          aria-labelledby="chart-title chart-description"
-          aria-describedby="chart-instructions"
-          style={{ touchAction: 'none', cursor: 'grab' }}
-        >
+        
+        {/* Chart Container - Center column */}
+        <div className="order-1 lg:order-2 relative">
+          {/* Zoom controls - positioned relative to chart container */}
+          <div className="absolute top-2 right-2 z-10 flex gap-1 sm:gap-2 items-center">
+            {/* Clear Selection Button */}
+            {selectedDomain && (
+              <button
+                onClick={clearSelection}
+                className="bg-gray-700 hover:bg-gray-800 text-white px-2 py-1 sm:px-3 sm:py-2 rounded-lg transition-colors duration-200 text-xs sm:text-sm font-medium focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
+                aria-label={`Clear selection of ${selectedDomainLabel} domain`}
+              >
+                Clear
+              </button>
+            )}
+            
+            {/* Zoom Controls */}
+            <div className="flex gap-0.5 sm:gap-1 bg-white rounded-lg shadow-md border border-gray-200 p-0.5">
+              <button
+                onClick={handleZoomIn}
+                className="w-7 h-7 sm:w-8 sm:h-8 lg:w-9 lg:h-9 flex items-center justify-center bg-white hover:bg-gray-100 text-gray-700 rounded transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                aria-label="Zoom in"
+                title="Zoom in (+)"
+              >
+                <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                </svg>
+              </button>
+              
+              <button
+                onClick={handleZoomOut}
+                className="w-7 h-7 sm:w-8 sm:h-8 lg:w-9 lg:h-9 flex items-center justify-center bg-white hover:bg-gray-100 text-gray-700 rounded transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                aria-label="Zoom out"
+                title="Zoom out (-)"
+              >
+                <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
+                </svg>
+              </button>
+              
+              <button
+                onClick={handleResetZoom}
+                className="w-7 h-7 sm:w-8 sm:h-8 lg:w-9 lg:h-9 flex items-center justify-center bg-white hover:bg-gray-100 text-gray-700 rounded transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                aria-label="Reset zoom"
+                title="Reset view (0)"
+              >
+                <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                </svg>
+              </button>
+            </div>
+            
+            {/* Help Button */}
+            <button
+              onClick={toggleNavigationHelp}
+              className="w-7 h-7 sm:w-8 sm:h-8 lg:w-9 lg:h-9 flex items-center justify-center bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+              aria-label="Show navigation instructions"
+              title="Navigation help"
+            >
+              <svg className="w-4 h-4 sm:w-5 sm:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </button>
+          </div>
+
+          {/* Chart SVG */}
+          <div className="chart-container flex justify-center items-center min-h-[300px] sm:min-h-[400px] lg:min-h-[500px]">
+            <svg 
+              ref={svgRef}
+              viewBox="0 0 5000 5000" 
+              className="w-full h-auto max-h-[70vh] sm:max-h-[75vh] lg:max-h-[80vh]"
+              xmlns="http://www.w3.org/2000/svg"
+              role="img"
+              aria-labelledby="chart-title chart-description"
+              aria-describedby="chart-instructions"
+              style={{ touchAction: 'none', cursor: 'grab' }}
+            >
           {/* Hidden descriptive text for screen readers */}
           <title id="chart-title">Interactive Radial Signals of Change Chart</title>
           <desc id="chart-description">
@@ -1021,17 +1013,9 @@ function RadialScanChart() {
             let opacity = 1.0;
             
             if (selectedScanHit) {
-              // If a signal of change is selected, check if this domain is associated with it
-              const isAssociatedDomain = selectedScanHit.domains && selectedScanHit.domains.includes(domain.id);
-              if (isAssociatedDomain) {
-                // Highlight associated domains
-                strokeColor = '#1f2937'; // Darker gray-800
-                strokeWidth = 6; // Thicker border
-                opacity = 1.0;
-              } else {
-                // Dim unassociated domains
-                opacity = 0.2;
-              }
+              // If a signal of change is selected, dim all domain ring borders
+              // (the colored segments will still be highlighted)
+              opacity = 0.3;
             } else if (isSelected || isInnerBoundaryOfSelected) {
               strokeColor = '#1f2937'; // Darker gray-800 for selected domain boundaries
               strokeWidth = 6; // Thicker border for selected domain boundaries
@@ -1092,17 +1076,17 @@ function RadialScanChart() {
             fill="none"
             stroke={
               selectedScanHit 
-                ? (selectedScanHit.domains && selectedScanHit.domains.includes('teaching-learning') ? '#1f2937' : CONFIG.ringColor)
+                ? CONFIG.ringColor  // Keep normal color when scan hit is selected
                 : (selectedDomain === 'teaching-learning' ? '#1f2937' : CONFIG.ringColor)
             }
             strokeWidth={
               selectedScanHit
-                ? (selectedScanHit.domains && selectedScanHit.domains.includes('teaching-learning') ? 6 : CONFIG.ringWidth)
+                ? CONFIG.ringWidth  // Keep normal width when scan hit is selected
                 : (selectedDomain === 'teaching-learning' ? 6 : CONFIG.ringWidth)
             }
             opacity={
               selectedScanHit 
-                ? (selectedScanHit.domains && selectedScanHit.domains.includes('teaching-learning') ? 1.0 : 0.2)
+                ? 0.3  // Dim all ring borders when scan hit is selected
                 : (selectedDomain && selectedDomain !== 'teaching-learning' ? 0.3 : 1.0)
             }
             className="transition-all duration-300"
@@ -1299,6 +1283,12 @@ function RadialScanChart() {
                 opacity = 1.0;
               }
               
+              // Determine star position based on text rotation
+              // Text on right side (0° to 180°): star at END (so it's on the outside)
+              // Text on left side (180° to 360°): star at BEGINNING (so it's on the outside)
+              const isRightSide = segmentCenterAngle >= 0 && segmentCenterAngle <= 180;
+              const showStar = scanHit.participantIdentified;
+              
               return (
                 <text
                   ref={(el) => textRefs.current[`text-${index}`] = el}
@@ -1329,114 +1319,24 @@ function RadialScanChart() {
                   aria-label={`Signal of change: ${truncatedTitle}${scanHit.domains.length > 1 ? ` (belongs to ${scanHit.domains.length} domains)` : ''}`}
                   aria-pressed={isFocused}
                 >
-                  {truncatedTitle}
+                  {showStar && !isRightSide && (
+                    <tspan fontSize="32" fill="#FFD700" dx="0" dy="0">
+                      ⭐
+                    </tspan>
+                  )}
+                  <tspan dx={showStar && !isRightSide ? "8" : "0"}>
+                    {truncatedTitle}
+                  </tspan>
+                  {showStar && isRightSide && (
+                    <tspan fontSize="32" fill="#FFD700" dx="8" dy="0">
+                      ⭐
+                    </tspan>
+                  )}
                 </text>
               );
             })}
           </g>
 
-          {/* Participant-identified stars - positioned beyond signal labels */}
-          <g id="participant-stars">
-            {scanHits.map((scanHit, index) => {
-              if (!scanHit.participantIdentified) return null;
-              
-              // Get text element and its bounding box
-              const textElement = textRefs.current[`text-${index}`];
-              if (!textElement) return null;
-              
-              try {
-                const bbox = textElement.getBBox();
-                const textHalfWidth = bbox.width / 2;
-                
-                // Use the same positioning logic as signal labels
-                const anglePerHit = 360 / scanHits.length;
-                const segmentStartAngle = (index / scanHits.length) * 360;
-                const segmentCenterAngle = segmentStartAngle + (anglePerHit / 2);
-                
-                // Get signal position (same as text label position)
-                const signalPosition = labelPositions[index] || 
-                  polarToCartesian(
-                    CONFIG.centerX,
-                    CONFIG.centerY,
-                    (CONFIG.scanHitRadius + CONFIG.positioning.desiredGap) - CONFIG.positioning.baseOffset,
-                    segmentCenterAngle
-                  );
-                
-                // Get text rotation (same logic as text labels)
-                let rotation = segmentCenterAngle + 90;
-                while (rotation > 90) rotation -= 180;
-                while (rotation < -90) rotation += 180;
-                
-                // Calculate which direction along the rotation axis points OUTWARD
-                // by checking which end is farther from center
-                const rotationRad = (rotation * Math.PI) / 180;
-                
-                // Two possible ends of the text
-                const end1 = {
-                  x: signalPosition.x + textHalfWidth * Math.cos(rotationRad),
-                  y: signalPosition.y + textHalfWidth * Math.sin(rotationRad)
-                };
-                const end2 = {
-                  x: signalPosition.x - textHalfWidth * Math.cos(rotationRad),
-                  y: signalPosition.y - textHalfWidth * Math.sin(rotationRad)
-                };
-                
-                // Calculate distances from chart center
-                const dist1 = Math.sqrt((end1.x - CONFIG.centerX)**2 + (end1.y - CONFIG.centerY)**2);
-                const dist2 = Math.sqrt((end2.x - CONFIG.centerX)**2 + (end2.y - CONFIG.centerY)**2);
-                
-                // Choose the end that's farther from center (the outer end)
-                const outerEnd = dist1 > dist2 ? end1 : end2;
-                const direction = dist1 > dist2 ? 1 : -1;
-                
-                // Star position: 60px beyond the outer end
-                const starPosition = {
-                  x: outerEnd.x + direction * 60 * Math.cos(rotationRad),
-                  y: outerEnd.y + direction * 60 * Math.sin(rotationRad)
-                };
-                
-                // Determine opacity based on selection
-                let opacity = 1.0;
-                if (selectedScanHit) {
-                  opacity = (scanHit.id || index) === (selectedScanHit.id || scanHits.findIndex(hit => hit.id === selectedScanHit.id)) ? 1.0 : 0.2;
-                } else if (selectedDomain) {
-                  opacity = scanHit.domains.includes(selectedDomain) ? 1.0 : 0.2;
-                }
-                
-                return (
-                  <g key={`star-${scanHit.id || index}`} opacity={opacity} className="transition-opacity duration-200">
-                    {/* Star shadow for depth */}
-                    <path
-                      d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"
-                      fill="#B8860B"
-                      transform={`translate(${starPosition.x - 12}, ${starPosition.y - 11.5}) scale(3)`}
-                      opacity="0.4"
-                    />
-                    {/* Main star */}
-                    <path
-                      d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"
-                      fill="#FFD700"
-                      transform={`translate(${starPosition.x - 12}, ${starPosition.y - 11.5}) scale(2.5)`}
-                      className="drop-shadow-lg"
-                      stroke="#FFA500"
-                      strokeWidth="1"
-                    />
-                    {/* Inner highlight */}
-                    <path
-                      d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"
-                      fill="#FFF8DC"
-                      transform={`translate(${starPosition.x - 12}, ${starPosition.y - 11.5}) scale(1.2)`}
-                      opacity="0.9"
-                    />
-                  </g>
-                );
-              } catch (error) {
-                // If bbox calculation fails, don't render star
-                console.warn(`Failed to calculate star position for signal ${index}:`, error);
-                return null;
-              }
-            })}
-          </g>
 
           {/* Domain labels positioned between rings at the bottom center (180 degrees) - Rendered last to appear on top */}
           {DOMAIN_LABELS.map((domain, index) => {
@@ -1571,32 +1471,37 @@ function RadialScanChart() {
 
           {/* End of transform group */}
           </g>
-        </svg>
+            </svg>
+          </div>
+        </div>
+        
       </div>
 
       {/* Status Messages with proper ARIA live regions */}
-      {selectedDomainLabel && (
-        <div 
-          className="mx-4 sm:mx-8 mb-4 sm:mb-8 p-3 sm:p-4 bg-blue-100 rounded-md text-center text-xs sm:text-sm text-blue-800 font-medium"
-          role="status"
-          aria-live="polite"
-          aria-label={`Domain filter applied`}
-        >
-          Showing signals of change for: <strong>{selectedDomainLabel}</strong>
-        </div>
-      )}
-      
-      <div className="mx-4 sm:mx-8 mb-4 sm:mb-8 min-h-[3rem] sm:min-h-[3.5rem] flex items-center justify-center transition-all duration-200">
-        {hoveredDomainLabel && !selectedDomain && (
+      <div className="px-2 sm:px-4 lg:px-8 pb-4 sm:pb-6 lg:pb-8">
+        {selectedDomainLabel && (
           <div 
-            className="p-3 sm:p-4 bg-gray-200 rounded-md text-center text-xs sm:text-sm text-gray-700 font-medium"
+            className="mb-4 p-3 sm:p-4 bg-blue-100 rounded-md text-center text-xs sm:text-sm text-blue-800 font-medium"
             role="status"
             aria-live="polite"
-            aria-label={`Hovering over domain`}
+            aria-label={`Domain filter applied`}
           >
-            Currently viewing: {hoveredDomainLabel}
+            Showing signals of change for: <strong>{selectedDomainLabel}</strong>
           </div>
         )}
+        
+        <div className="min-h-[3rem] sm:min-h-[3.5rem] flex items-center justify-center transition-all duration-200">
+          {hoveredDomainLabel && !selectedDomain && (
+            <div 
+              className="p-3 sm:p-4 bg-gray-200 rounded-md text-center text-xs sm:text-sm text-gray-700 font-medium"
+              role="status"
+              aria-live="polite"
+              aria-label={`Hovering over domain`}
+            >
+              Currently viewing: {hoveredDomainLabel}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Information Modal - Side Panel */}

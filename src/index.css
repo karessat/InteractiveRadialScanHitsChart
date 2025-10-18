@@ -13,5 +13,22 @@
     background-color: #f3f4f6;
     min-height: 100vh;
   }
+
+  /* Mobile optimizations */
+  @media (max-width: 640px) {
+    svg {
+      -webkit-tap-highlight-color: transparent;
+    }
+    
+    /* Prevent pull-to-refresh on chart */
+    .chart-container {
+      overscroll-behavior: contain;
+    }
+    
+    /* Smooth scrolling for modals */
+    .modal-panel {
+      -webkit-overflow-scrolling: touch;
+    }
+  }
 }
 
