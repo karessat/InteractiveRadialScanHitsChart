@@ -60,43 +60,43 @@ const DOMAIN_LABELS = [
     id: 'teaching-learning', 
     label: 'Teaching & Learning Models',
     description: 'Innovative pedagogical approaches and learning methodologies that transform how knowledge is shared and acquired.',
-    futuresContext: 'The futures of education in Africa will see teaching evolve from traditional lecture-based models to collaborative, student-centered approaches that emphasize critical thinking, creativity, and problem-solving skills essential for the continent\'s development.'
+    futuresContext: 'The futures of African education could shift from teacher-centered instruction to learner-driven experiences where students control their journeys, learn through play and dialogue, and merge academic study with real-world work. Mental health support and climate-adaptive teaching methods could become central, with educators as facilitators guiding self-directed exploration rather than delivering information.'
   },
   { 
     id: 'equity-access', 
     label: 'Equity & Access',
     description: 'Ensuring fair and inclusive educational opportunities for all learners regardless of background or circumstances.',
-    futuresContext: 'Future African education systems will prioritize universal access, breaking down barriers of geography, gender, disability, and socioeconomic status to create truly inclusive learning environments.'
+    futuresContext: 'The futures of educational access could ensure every African child learns in their mother tongue while gaining global skills, with universal design welcoming all abilities. Mobile units could reach nomadic communities, digital tools could serve rural areas equally, and education could become the primary vehicle for closing gender and economic divides.'
   },
   { 
     id: 'curriculum-reform', 
     label: 'Curriculum Reform',
     description: 'Modernizing educational content to reflect contemporary needs, local contexts, and future skills requirements.',
-    futuresContext: 'African curricula will increasingly integrate local knowledge systems, environmental sustainability, digital literacy, and entrepreneurial skills while maintaining cultural identity and relevance.'
+    futuresContext: 'African curricula\'s futures could emphasize preparing students for unknown jobs through flexibility and critical thinking rather than memorization. Environmental literacy and mental health could become core subjects, with students co-designing learning pathways that honor both global competencies and indigenous wisdom.'
   },
   { 
     id: 'education-society', 
     label: 'Education & Society',
     description: 'The interconnected relationship between educational systems and broader societal development and transformation.',
-    futuresContext: 'Education will become a central driver of social cohesion, economic development, and democratic participation across African societies, fostering active citizenship and community engagement.'
+    futuresContext: 'Schools\' futures could see them transform into multi-purpose community hubs serving as peace-building centers, climate shelters, and spaces for intergenerational environmental action. Education systems could adapt quickly to serve climate migrants and economic shifts, graduating young people as environmental leaders ready to build new social contracts.'
   },
   { 
     id: 'technology-digital', 
     label: 'Technology & Digital Learning',
     description: 'Leveraging digital tools and platforms to enhance learning experiences and expand educational reach.',
-    futuresContext: 'Digital technologies will democratize access to quality education across Africa, enabling personalized learning, remote education, and innovative teaching methods that transcend traditional classroom boundaries.'
+    futuresContext: 'African classrooms\' futures could feature AI personalizing every lesson, virtual reality bringing concepts to life, and solar-powered devices ensuring universal digital access. Gamification and biometric feedback could make learning feel like discovery, while massive tech investment and thoughtful AI integration could scale quality education to millions.'
   },
   { 
     id: 'investment-governance', 
     label: 'Investment & Governance',
     description: 'Financial resources, policy frameworks, and institutional structures that support educational systems.',
-    futuresContext: 'Future governance models will emphasize transparent, accountable, and participatory decision-making in education, with innovative financing mechanisms ensuring sustainable investment in human capital.'
+    futuresContext: 'Educational governance futures could shift from political influence to merit-based decisions, with independent evaluation and guaranteed education funding as a basic right. Early childhood education could receive priority investment, while renewable energy infrastructure could enable universal digital learning.'
   },
   { 
     id: 'teacher-empowerment', 
     label: 'Teacher Empowerment',
     description: 'Supporting educators as professionals and change agents in transforming educational outcomes.',
-    futuresContext: 'Teachers will evolve into learning facilitators, mentors, and community leaders, equipped with continuous professional development opportunities and recognition as key drivers of Africa\'s educational transformation.'
+    futuresContext: 'The futures of teaching could feature continuous professional development through large-scale training programs and mental health support making the profession sustainable. Teachers could integrate AI ethically, close urban-rural gaps, and collaborate globally to bring best practices to every African classroom.'
   }
 ];
 
@@ -385,6 +385,7 @@ function RadialScanChart() {
   const [selectedScanHit, setSelectedScanHit] = useState(null);
   const [hasInitiallyLoaded, setHasInitiallyLoaded] = useState(false);
   const [showDefaultModal, setShowDefaultModal] = useState(false);
+  const [showModalPanel, setShowModalPanel] = useState(false); // Controls modal panel visibility independently
   const [panelWidth, setPanelWidth] = useState(600); // Default width in pixels
   const [isResizing, setIsResizing] = useState(false);
   
@@ -432,6 +433,9 @@ function RadialScanChart() {
     
     setSelectedDomain(prev => prev === domainId ? null : domainId);
     
+    // Open modal panel to show domain information
+    setShowModalPanel(true);
+    
     // Track analytics
     if (isSelecting) {
       trackDomainSelection(domainId, domainLabel);
@@ -440,13 +444,16 @@ function RadialScanChart() {
 
   const clearSelection = useCallback(() => {
     setSelectedDomain(null);
+    setSelectedScanHit(null);
     setFocusedScanHit(null);
+    setShowModalPanel(false);
   }, []);
 
   const closeModal = useCallback(() => {
-    setSelectedScanHit(null);
-    setSelectedDomain(null);
+    // Only close the modal panel, keep selection state
+    setShowModalPanel(false);
     setShowDefaultModal(false);
+    // Note: selectedScanHit and selectedDomain persist to maintain visual selection
   }, []);
 
   const toggleNavigationHelp = useCallback(() => {
@@ -501,6 +508,9 @@ function RadialScanChart() {
     // Clear domain selection and set the selected signal of change to show in modal
     setSelectedDomain(null);
     setSelectedScanHit(scanHit);
+    
+    // Open modal panel to show scan hit details
+    setShowModalPanel(true);
     
     // Track analytics
     trackScanHitClick(scanHitId, scanHit.title, scanHit.domains);
@@ -659,7 +669,7 @@ function RadialScanChart() {
   useEffect(() => {
     const handleKeyDown = (event) => {
       if (event.key === 'Escape') {
-        if (selectedScanHit || selectedDomain || showDefaultModal) {
+        if (showModalPanel) {
           closeModal();
         } else if (showNavigationHelp) {
           closeNavigationHelp();
@@ -669,7 +679,7 @@ function RadialScanChart() {
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [selectedScanHit, selectedDomain, showDefaultModal, showNavigationHelp, closeModal, closeNavigationHelp]);
+  }, [showModalPanel, showNavigationHelp, closeModal, closeNavigationHelp]);
 
   // Keyboard shortcuts for zoom and pan
   useEffect(() => {
@@ -743,16 +753,16 @@ function RadialScanChart() {
   // Click outside modal to close it
   useEffect(() => {
     const handleClickOutside = (event) => {
-      if ((selectedScanHit || selectedDomain || showDefaultModal) && !event.target.closest('.modal-panel')) {
+      if (showModalPanel && !event.target.closest('.modal-panel')) {
         closeModal();
       }
     };
 
-    if (selectedScanHit || selectedDomain || showDefaultModal) {
+    if (showModalPanel) {
       document.addEventListener('click', handleClickOutside);
       return () => document.removeEventListener('click', handleClickOutside);
     }
-  }, [selectedScanHit, selectedDomain, showDefaultModal, closeModal]);
+  }, [showModalPanel, closeModal]);
 
   // Panel resize event listeners
   useEffect(() => {
@@ -871,8 +881,8 @@ function RadialScanChart() {
     <div className="w-full max-w-[2400px] mx-auto bg-white rounded-lg shadow-md overflow-x-hidden">
       {/* Integrated Header */}
       <header className="text-center p-4 pb-4 sm:pb-6 lg:pb-8">
-        <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-blue-600 mb-2">UNICEF Youth Foresight Fellows Scanning Highlights</h1>
-        <p className="text-sm sm:text-base text-gray-600">Interactive scanning radar</p>
+        <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-blue-600 mb-2">UNICEF Youth Foresight Fellows</h1>
+        <p className="text-xl sm:text-2xl lg:text-3xl font-bold text-gray-600">Interactive Signal of Change Radar</p>
       </header>
       
       {/* Main Content Grid */}
@@ -1055,6 +1065,7 @@ function RadialScanChart() {
               setSelectedScanHit(null);
               setSelectedDomain(null);
               setShowDefaultModal(true);
+              setShowModalPanel(true);
             }}
             onKeyDown={(e) => {
               if (e.key === 'Enter' || e.key === ' ') {
@@ -1063,6 +1074,7 @@ function RadialScanChart() {
                 setSelectedScanHit(null);
                 setSelectedDomain(null);
                 setShowDefaultModal(true);
+                setShowModalPanel(true);
               }
             }}
             tabIndex={0}
@@ -1477,6 +1489,7 @@ function RadialScanChart() {
               setSelectedScanHit(null);
               setSelectedDomain(null);
               setShowDefaultModal(true);
+              setShowModalPanel(true);
             }}
             onKeyDown={(e) => {
               if (e.key === 'Enter' || e.key === ' ') {
@@ -1485,6 +1498,7 @@ function RadialScanChart() {
                 setSelectedScanHit(null);
                 setSelectedDomain(null);
                 setShowDefaultModal(true);
+                setShowModalPanel(true);
               }
             }}
             tabIndex={0}
@@ -1528,7 +1542,7 @@ function RadialScanChart() {
       </div>
 
       {/* Information Modal - Side Panel */}
-      {(selectedScanHit || selectedDomain || showDefaultModal) && (
+      {showModalPanel && (selectedScanHit || selectedDomain || showDefaultModal) && (
         <div className="fixed inset-0 z-50 pointer-events-none">
           {/* Modal Content - Full screen on mobile, right panel on desktop */}
           <div 
