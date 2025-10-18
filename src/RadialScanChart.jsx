@@ -387,6 +387,7 @@ function RadialScanChart() {
   const [showDefaultModal, setShowDefaultModal] = useState(false);
   const [panelWidth, setPanelWidth] = useState(600); // Default width in pixels
   const [isResizing, setIsResizing] = useState(false);
+  const [showLegend, setShowLegend] = useState(typeof window !== 'undefined' ? window.innerWidth >= 640 : true);
   
   // State for dynamic positioning
   const [labelPositions, setLabelPositions] = useState({});
@@ -868,20 +869,20 @@ function RadialScanChart() {
   // MAIN RENDER
   // ============================================================================
   return (
-    <div className="w-full max-w-[2400px] mx-auto bg-white rounded-lg shadow-md relative px-8 sm:px-12 lg:px-24">
+    <div className="w-full max-w-[2400px] mx-auto bg-white rounded-lg shadow-md relative px-4 sm:px-8 lg:px-24">
       {/* Integrated Header */}
       <header className="text-center p-4 pb-2">
-        <h1 className="text-4xl font-bold text-blue-600 mb-2">UNICEF Youth Foresight Fellows Scanning Highlights</h1>
-        <p className="text-base text-gray-600">Interactive scanning radar</p>
+        <h1 className="text-2xl sm:text-3xl lg:text-4xl font-bold text-blue-600 mb-2">UNICEF Youth Foresight Fellows Scanning Highlights</h1>
+        <p className="text-sm sm:text-base text-gray-600">Interactive scanning radar</p>
       </header>
       
       {/* Zoom Control Buttons */}
-      <div className="absolute top-8 right-8 flex gap-3 items-center">
+      <div className="fixed bottom-20 right-4 md:absolute md:top-8 md:right-8 flex gap-2 md:gap-3 items-center z-40">
         {/* Clear Selection Button */}
         {selectedDomain && (
           <button
             onClick={clearSelection}
-            className="bg-gray-700 hover:bg-gray-800 text-white px-4 py-2 rounded-lg transition-colors duration-200 font-medium focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
+            className="bg-gray-700 hover:bg-gray-800 text-white px-3 py-2 sm:px-4 sm:py-2 rounded-lg transition-colors duration-200 text-sm sm:text-base font-medium focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
             aria-label={`Clear selection of ${selectedDomainLabel} domain`}
           >
             Clear Selection
@@ -892,33 +893,33 @@ function RadialScanChart() {
         <div className="flex gap-1 bg-white rounded-lg shadow-md border border-gray-200 p-1">
           <button
             onClick={handleZoomIn}
-            className="w-10 h-10 flex items-center justify-center bg-white hover:bg-gray-100 text-gray-700 rounded transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-12 h-12 md:w-10 md:h-10 flex items-center justify-center bg-white hover:bg-gray-100 text-gray-700 rounded transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
             aria-label="Zoom in"
             title="Zoom in (+)"
           >
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg className="w-6 h-6 md:w-5 md:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
             </svg>
           </button>
           
           <button
             onClick={handleZoomOut}
-            className="w-10 h-10 flex items-center justify-center bg-white hover:bg-gray-100 text-gray-700 rounded transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-12 h-12 md:w-10 md:h-10 flex items-center justify-center bg-white hover:bg-gray-100 text-gray-700 rounded transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
             aria-label="Zoom out"
             title="Zoom out (-)"
           >
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg className="w-6 h-6 md:w-5 md:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
             </svg>
           </button>
           
           <button
             onClick={handleResetZoom}
-            className="w-10 h-10 flex items-center justify-center bg-white hover:bg-gray-100 text-gray-700 rounded transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-12 h-12 md:w-10 md:h-10 flex items-center justify-center bg-white hover:bg-gray-100 text-gray-700 rounded transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
             aria-label="Reset zoom"
             title="Reset view (0)"
           >
-            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <svg className="w-6 h-6 md:w-5 md:h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
             </svg>
           </button>
@@ -927,48 +928,62 @@ function RadialScanChart() {
         {/* Help Button - Outside zoom controls */}
         <button
           onClick={toggleNavigationHelp}
-          className="w-12 h-12 flex items-center justify-center bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+          className="w-14 h-14 md:w-12 md:h-12 flex items-center justify-center bg-blue-600 hover:bg-blue-700 text-white rounded-full shadow-lg transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
           aria-label="Show navigation instructions"
           title="Navigation help"
         >
-          <svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <svg className="w-8 h-8 md:w-7 md:h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
           </svg>
         </button>
       </div>
       
+      {/* Legend Toggle Button - Mobile Only */}
+      <button
+        onClick={() => setShowLegend(!showLegend)}
+        className="fixed bottom-4 left-4 lg:hidden z-40 bg-white rounded-full p-3 shadow-lg border border-gray-200 hover:bg-gray-50 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+        aria-label={showLegend ? "Hide legend" : "Show legend"}
+        title={showLegend ? "Hide legend" : "Show legend"}
+      >
+        <svg className="w-6 h-6 text-gray-700" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 21a4 4 0 01-4-4V5a2 2 0 012-2h4a2 2 0 012 2v12a4 4 0 01-4 4zm0 0h12a2 2 0 002-2v-4a2 2 0 00-2-2h-2.343M11 7.343l1.657-1.657a2 2 0 012.828 0l2.829 2.829a2 2 0 010 2.828l-8.486 8.485M7 17h.01" />
+        </svg>
+      </button>
+      
       {/* STEEP Category Legend */}
-      <div className="absolute left-8 top-32 bg-white p-10 rounded-lg shadow-md border border-gray-200">
-        <h3 className="text-2xl font-semibold text-gray-700 mb-6">STEEP Categories</h3>
-        <div className="space-y-5">
-          {Object.entries(STEEP_COLORS).map(([category, color]) => (
-            <div key={category} className="flex items-center gap-4">
-              <div 
-                className="w-8 h-8 rounded-full border border-gray-300"
-                style={{ backgroundColor: color }}
-                aria-hidden="true"
-              />
-              <span className="text-lg text-gray-600 font-medium">{category}</span>
+      {showLegend && (
+        <div className="fixed lg:absolute left-4 bottom-16 lg:left-8 lg:top-32 lg:bottom-auto bg-white p-6 lg:p-10 rounded-lg shadow-md border border-gray-200 max-w-[90vw] lg:max-w-none z-30">
+          <h3 className="text-xl lg:text-2xl font-semibold text-gray-700 mb-4 lg:mb-6">STEEP Categories</h3>
+          <div className="space-y-3 lg:space-y-5">
+            {Object.entries(STEEP_COLORS).map(([category, color]) => (
+              <div key={category} className="flex items-center gap-3 lg:gap-4">
+                <div 
+                  className="w-6 h-6 lg:w-8 lg:h-8 rounded-full border border-gray-300 flex-shrink-0"
+                  style={{ backgroundColor: color }}
+                  aria-hidden="true"
+                />
+                <span className="text-sm lg:text-lg text-gray-600 font-medium">{category}</span>
+              </div>
+            ))}
+          </div>
+          
+          {/* Participant-identified stars legend */}
+          <div className="mt-6 lg:mt-8 pt-4 lg:pt-6 border-t border-gray-200">
+            <div className="flex items-center gap-3 lg:gap-4">
+              <svg width="20" height="20" viewBox="0 0 24 24" className="text-yellow-500 flex-shrink-0 lg:w-6 lg:h-6">
+                <path 
+                  d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" 
+                  fill="currentColor"
+                />
+              </svg>
+              <span className="text-sm lg:text-lg text-gray-600 font-medium">Participant-identified signals</span>
             </div>
-          ))}
-        </div>
-        
-        {/* Participant-identified stars legend */}
-        <div className="mt-8 pt-6 border-t border-gray-200">
-          <div className="flex items-center gap-4">
-            <svg width="24" height="24" viewBox="0 0 24 24" className="text-yellow-500">
-              <path 
-                d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" 
-                fill="currentColor"
-              />
-            </svg>
-            <span className="text-lg text-gray-600 font-medium">Participant-identified signals</span>
           </div>
         </div>
-      </div>
+      )}
       
       {/* Chart Container */}
-      <div className="p-16 pt-8 pb-20 flex justify-center items-center">
+      <div className="p-4 sm:p-8 lg:p-16 pt-4 sm:pt-6 lg:pt-8 pb-12 sm:pb-16 lg:pb-20 flex justify-center items-center">
         <svg 
           ref={svgRef}
           viewBox="0 0 5000 5000" 
@@ -1562,7 +1577,7 @@ function RadialScanChart() {
       {/* Status Messages with proper ARIA live regions */}
       {selectedDomainLabel && (
         <div 
-          className="mx-8 mb-8 p-4 bg-blue-100 rounded-md text-center text-sm text-blue-800 font-medium"
+          className="mx-4 sm:mx-8 mb-4 sm:mb-8 p-3 sm:p-4 bg-blue-100 rounded-md text-center text-xs sm:text-sm text-blue-800 font-medium"
           role="status"
           aria-live="polite"
           aria-label={`Domain filter applied`}
@@ -1571,10 +1586,10 @@ function RadialScanChart() {
         </div>
       )}
       
-      <div className="mx-8 mb-8 min-h-[3.5rem] flex items-center justify-center transition-all duration-200">
+      <div className="mx-4 sm:mx-8 mb-4 sm:mb-8 min-h-[3rem] sm:min-h-[3.5rem] flex items-center justify-center transition-all duration-200">
         {hoveredDomainLabel && !selectedDomain && (
           <div 
-            className="p-4 bg-gray-200 rounded-md text-center text-sm text-gray-700 font-medium"
+            className="p-3 sm:p-4 bg-gray-200 rounded-md text-center text-xs sm:text-sm text-gray-700 font-medium"
             role="status"
             aria-live="polite"
             aria-label={`Hovering over domain`}
@@ -1587,14 +1602,14 @@ function RadialScanChart() {
       {/* Information Modal - Side Panel */}
       {(selectedScanHit || selectedDomain || showDefaultModal) && (
         <div className="fixed inset-0 z-50 pointer-events-none">
-          {/* Modal Content - Positioned to the right */}
+          {/* Modal Content - Full screen on mobile, right panel on desktop */}
           <div 
-            className="modal-panel absolute right-0 top-0 h-full bg-white shadow-2xl border-l border-gray-200 pointer-events-auto overflow-hidden"
-            style={{ width: `${panelWidth}px` }}
+            className="modal-panel fixed inset-0 lg:absolute lg:right-0 lg:top-0 lg:inset-auto h-full bg-white shadow-2xl lg:border-l border-gray-200 pointer-events-auto overflow-hidden"
+            style={{ width: typeof window !== 'undefined' && window.innerWidth >= 1024 ? `${panelWidth}px` : '100%' }}
           >
-            {/* Resize Handle */}
+            {/* Resize Handle - Desktop Only */}
             <div
-              className="absolute left-0 top-0 bottom-0 w-1 cursor-ew-resize hover:bg-blue-500 transition-colors duration-150 group"
+              className="hidden lg:block absolute left-0 top-0 bottom-0 w-1 cursor-ew-resize hover:bg-blue-500 transition-colors duration-150 group"
               onMouseDown={handleResizeStart}
               style={{ 
                 borderLeft: isResizing ? '3px solid #3b82f6' : '3px solid transparent',
@@ -1605,8 +1620,8 @@ function RadialScanChart() {
             </div>
             
             {/* Header with close button */}
-            <div className="flex items-start justify-between p-6 border-b border-gray-200">
-              <h2 className="text-2xl font-semibold text-gray-900 pr-8 leading-tight">
+            <div className="flex items-start justify-between p-4 sm:p-6 border-b border-gray-200">
+              <h2 className="text-lg sm:text-xl lg:text-2xl font-semibold text-gray-900 pr-4 sm:pr-8 leading-tight">
                 {selectedScanHit ? selectedScanHit.title : 
                  selectedDomain ? DOMAIN_LABELS.find(d => d.id === selectedDomain)?.label :
                  'About the Futures of Education in Africa'}
@@ -1623,7 +1638,7 @@ function RadialScanChart() {
             </div>
 
             {/* Scrollable Content */}
-            <div className="p-6 overflow-y-auto h-[calc(100vh-120px)]">
+            <div className="p-4 sm:p-6 overflow-y-auto h-[calc(100vh-80px)] sm:h-[calc(100vh-100px)] lg:h-[calc(100vh-120px)]">
               {selectedScanHit ? (
                 // Signal of Change Details Content
                 <>
@@ -1819,14 +1834,14 @@ function RadialScanChart() {
 
       {/* Navigation Help Modal */}
       {showNavigationHelp && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-2 sm:p-4">
           {/* Modal Content */}
-          <div className="modal-panel bg-white rounded-lg shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden">
+          <div className="modal-panel bg-white rounded-lg shadow-2xl max-w-full sm:max-w-2xl w-full max-h-[95vh] sm:max-h-[90vh] overflow-hidden">
             {/* Header */}
-            <div className="flex items-start justify-between p-6 border-b border-gray-200">
+            <div className="flex items-start justify-between p-4 sm:p-6 border-b border-gray-200">
               <div>
-                <h2 className="text-2xl font-bold text-gray-900">Navigation Guide</h2>
-                <p className="text-sm text-gray-600 mt-1">Learn how to explore the chart</p>
+                <h2 className="text-xl sm:text-2xl font-bold text-gray-900">Navigation Guide</h2>
+                <p className="text-xs sm:text-sm text-gray-600 mt-1">Learn how to explore the chart</p>
               </div>
               <button
                 onClick={closeNavigationHelp}
@@ -1840,10 +1855,10 @@ function RadialScanChart() {
             </div>
 
             {/* Content */}
-            <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
+            <div className="p-4 sm:p-6 overflow-y-auto max-h-[calc(95vh-100px)] sm:max-h-[calc(90vh-120px)]">
               {/* Mouse Controls */}
               <div className="mb-6">
-                <h3 className="text-lg font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                <h3 className="text-base sm:text-lg font-semibold text-gray-800 mb-3 flex items-center gap-2">
                   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
                   </svg>
@@ -1871,7 +1886,7 @@ function RadialScanChart() {
 
               {/* Touch Controls */}
               <div className="mb-6">
-                <h3 className="text-lg font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                <h3 className="text-base sm:text-lg font-semibold text-gray-800 mb-3 flex items-center gap-2">
                   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 11.5V14m0-2.5v-6a1.5 1.5 0 113 0m-3 6a1.5 1.5 0 00-3 0v2a7.5 7.5 0 0015 0v-5a1.5 1.5 0 00-3 0m-6-3V11m0-5.5v-1a1.5 1.5 0 013 0v1m0 0V11m0-5.5a1.5 1.5 0 013 0v3m0 0V11" />
                   </svg>
@@ -1895,13 +1910,13 @@ function RadialScanChart() {
 
               {/* Keyboard Shortcuts */}
               <div className="mb-6">
-                <h3 className="text-lg font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                <h3 className="text-base sm:text-lg font-semibold text-gray-800 mb-3 flex items-center gap-2">
                   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4" />
                   </svg>
                   Keyboard Shortcuts
                 </h3>
-                <div className="grid grid-cols-2 gap-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="flex items-center gap-2">
                     <kbd className="px-2 py-1 bg-gray-100 border border-gray-300 rounded text-sm font-mono">+</kbd>
                     <span className="text-sm text-gray-600">Zoom in</span>
@@ -1927,7 +1942,7 @@ function RadialScanChart() {
 
               {/* Button Controls */}
               <div className="mb-4">
-                <h3 className="text-lg font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                <h3 className="text-base sm:text-lg font-semibold text-gray-800 mb-3 flex items-center gap-2">
                   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122" />
                   </svg>
