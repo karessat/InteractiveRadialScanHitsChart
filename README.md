@@ -1,6 +1,6 @@
-# Interactive Radial Scan Hits Chart
+# Interactive Radial Signals of Change Chart
 
-An interactive radial chart visualization built with React and SVG, designed to display scan hit data from AITable. Features advanced text positioning algorithms for uniform spacing and optimized performance.
+An interactive radial chart visualization built with React and SVG, designed to display signals of change data from AITable. Features advanced text positioning algorithms for uniform spacing and optimized performance.
 
 ## ✨ Features
 
@@ -116,13 +116,13 @@ This project includes several performance optimizations:
 ## 🎨 Key Features Explained
 
 ### Dynamic Text Positioning
-The chart uses advanced algorithms to ensure all scan hit labels are uniformly spaced around the outer circle:
+The chart uses advanced algorithms to ensure all signal of change labels are uniformly spaced around the outer circle:
 - **Continuous angle-based adjustments** - Smooth positioning across all quadrants
 - **Bounding box measurement** - Precise text dimension calculation
 - **Micro-adjustments** - Fine-tuned spacing for perfect visual alignment
 
 ### Interactive Domain Filtering
-- Click any domain ring to filter scan hits
+- Click any domain ring to filter signals of change
 - Hover effects for visual feedback
 - Clear selection button for easy navigation
 

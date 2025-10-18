@@ -1,7 +1,7 @@
 {
   "name": "interactive-radial-scan-hits-chart",
   "version": "2.0.0",
-  "description": "An interactive radial chart visualization built with React and SVG, designed to display scan hit data from AITable with advanced text positioning algorithms.",
+  "description": "An interactive radial chart visualization built with React and SVG, designed to display signals of change data from AITable with advanced text positioning algorithms.",
   "type": "module",
   "keywords": [
     "react",

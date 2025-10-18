@@ -1,8 +1,8 @@
 /**
- * @fileoverview Interactive Radial Scan Hits Chart Component
+ * @fileoverview Interactive Radial Signals of Change Chart Component
  * 
  * A React component that displays an interactive radial visualization of education
- * domain scan hits data from AITable. Features dynamic text positioning, domain
+ * domain signals of change data from AITable. Features dynamic text positioning, domain
  * filtering, and real-time data integration.
  * 
  * @author UNICEF/Radial Interactive Team
@@ -139,7 +139,7 @@ const getSteepColor = (category) => {
 };
 
 /**
- * Get the innermost domain (smallest radius) for a scan hit
+ * Get the innermost domain (smallest radius) for a signal of change
  * @param {Array} domains - Array of domain IDs
  * @returns {string} Innermost domain ID
  */
@@ -175,9 +175,9 @@ const getNextOutermostDomain = (domains, innermostDomain) => {
 };
 
 /**
- * Sort scan hits by STEEP category, then by innermost domain, then by next domain
- * @param {Array} scanHits - Array of scan hit objects
- * @returns {Array} Sorted array of scan hits
+ * Sort signals of change by STEEP category, then by innermost domain, then by next domain
+ * @param {Array} scanHits - Array of signal of change objects
+ * @returns {Array} Sorted array of signals of change
  */
 const sortScanHits = (scanHits) => {
   return [...scanHits].sort((a, b) => {
@@ -302,7 +302,7 @@ const calculateTextPosition = (bbox, angle, baseOffset = CONFIG.positioning.base
 
 
 /**
- * Fetches scan hits data from AITable API with retry logic
+ * Fetches signals of change data from AITable API with retry logic
  * @returns {Promise<Array>} Array of raw records from AITable
  * @throws {Error} If API request fails after all retry attempts
  */
@@ -321,9 +321,9 @@ const fetchScanHits = async () => {
 };
 
 /**
- * Transforms raw AITable records into structured scan hit objects
+ * Transforms raw AITable records into structured signal of change objects
  * @param {Array} records - Raw records from AITable
- * @returns {Array} Array of transformed scan hit objects
+ * @returns {Array} Array of transformed signal of change objects
  */
 const transformData = (records) => {
   return records.map(record => {
@@ -355,14 +355,15 @@ const transformData = (records) => {
       source: record.fields['Link'],
       recNumber: record.fields['RecNumber'],
       steepCategory: record.fields['STEEP Category'],
+      participantIdentified: record.fields['Participant Identified'] || false,
     };
   });
 };
 
 /**
- * Interactive Radial Scan Hits Chart Component
+ * Interactive Radial Signals of Change Chart Component
  * 
- * Displays an interactive radial visualization of education domain scan hits data.
+ * Displays an interactive radial visualization of education domain signals of change data.
  * Features include:
  * - Dynamic text positioning with uniform spacing around the outer ring
  * - Interactive domain selection and filtering
@@ -425,7 +426,7 @@ function RadialScanChart() {
       previousDomain: selectedDomain 
     });
     
-    // Clear any focused scan hit and selected scan hit when clicking domain rings
+    // Clear any focused signal of change and selected signal of change when clicking domain rings
     setFocusedScanHit(null);
     setSelectedScanHit(null);
     
@@ -490,14 +491,14 @@ function RadialScanChart() {
   const handleScanHitClick = useCallback((scanHit, index) => {
     const scanHitId = scanHit.id || index;
     
-    debugLog('Scan hit clicked', { 
+    debugLog('Signal of change clicked', { 
       scanHitId, 
       title: scanHit.title, 
       previousSelection: selectedScanHit?.id,
       domains: scanHit.domains 
     });
     
-    // Clear domain selection and set the selected scan hit to show in modal
+    // Clear domain selection and set the selected signal of change to show in modal
     setSelectedDomain(null);
     setSelectedScanHit(scanHit);
     
@@ -550,12 +551,13 @@ function RadialScanChart() {
         const sorted = sortScanHits(transformed);
         setScanHits(sorted);
         setError(null);
-        console.log('Fetched scan hits:', sorted);
+        console.log('Fetched signals of change:', sorted);
         console.log('Total records:', sorted.length);
         console.log('Sample record:', sorted[0]);
         console.log('STEEP Categories found:', [...new Set(sorted.map(s => s.steepCategory))]);
+        console.log('Participant-identified signals:', sorted.filter(s => s.participantIdentified).length);
       } catch (err) {
-        setError('Failed to load scan hits. Please check your API credentials.');
+        setError('Failed to load signals of change. Please check your API credentials.');
         console.error('Full error:', err);
       } finally {
         setLoading(false);
@@ -787,7 +789,7 @@ function RadialScanChart() {
           
           {/* Loading messages */}
           <h2 className="text-xl font-semibold text-gray-800 mb-2">Loading Futures Data</h2>
-          <p className="text-gray-600 mb-4">Fetching scan hits from AITable...</p>
+          <p className="text-gray-600 mb-4">Fetching signals of change from AITable...</p>
           
           {/* Progress indicators */}
           <div className="space-y-2 text-sm text-gray-500">
@@ -807,7 +809,7 @@ function RadialScanChart() {
           
           {/* Accessibility */}
           <div className="sr-only" role="status" aria-live="polite">
-            Loading scan hits data from AITable API. Please wait.
+            Loading signals of change data from AITable API. Please wait.
           </div>
         </div>
       </div>
@@ -869,7 +871,7 @@ function RadialScanChart() {
     <div className="w-full max-w-[2400px] mx-auto bg-white rounded-lg shadow-md relative px-8 sm:px-12 lg:px-24">
       {/* Integrated Header */}
       <header className="text-center p-4 pb-2">
-        <h1 className="text-4xl font-bold text-blue-600 mb-2">UNICEF Future Fellows Scanning Highlights</h1>
+        <h1 className="text-4xl font-bold text-blue-600 mb-2">UNICEF Youth Foresight Fellows Scanning Highlights</h1>
         <p className="text-base text-gray-600">Interactive scanning radar</p>
       </header>
       
@@ -950,6 +952,19 @@ function RadialScanChart() {
             </div>
           ))}
         </div>
+        
+        {/* Participant-identified stars legend */}
+        <div className="mt-8 pt-6 border-t border-gray-200">
+          <div className="flex items-center gap-4">
+            <svg width="24" height="24" viewBox="0 0 24 24" className="text-yellow-500">
+              <path 
+                d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" 
+                fill="currentColor"
+              />
+            </svg>
+            <span className="text-lg text-gray-600 font-medium">Participant-identified signals</span>
+          </div>
+        </div>
       </div>
       
       {/* Chart Container */}
@@ -965,12 +980,12 @@ function RadialScanChart() {
           style={{ touchAction: 'none', cursor: 'grab' }}
         >
           {/* Hidden descriptive text for screen readers */}
-          <title id="chart-title">Interactive Radial Scan Hits Chart</title>
+          <title id="chart-title">Interactive Radial Signals of Change Chart</title>
           <desc id="chart-description">
-            A radial chart showing education domain scan hits data. The chart displays seven concentric circles representing different education domains, with scan hit labels positioned around the outer perimeter. Each scan hit can belong to multiple domains.
+            A radial chart showing education domain signals of change data. The chart displays seven concentric circles representing different education domains, with signal of change labels positioned around the outer perimeter. Each signal of change can belong to multiple domains.
           </desc>
           <desc id="chart-instructions">
-            Use your mouse to click on domain labels or scan hit dots to filter and interact with the chart elements.
+            Use your mouse to click on domain labels or signal of change dots to filter and interact with the chart elements.
           </desc>
 
           {/* Transform group for zoom and pan - all chart content goes inside this */}
@@ -991,7 +1006,7 @@ function RadialScanChart() {
             let opacity = 1.0;
             
             if (selectedScanHit) {
-              // If a scan hit is selected, check if this domain is associated with it
+              // If a signal of change is selected, check if this domain is associated with it
               const isAssociatedDomain = selectedScanHit.domains && selectedScanHit.domains.includes(domain.id);
               if (isAssociatedDomain) {
                 // Highlight associated domains
@@ -1091,7 +1106,7 @@ function RadialScanChart() {
               // Determine opacity for radiating lines
               let lineOpacity = 0.7; // Default opacity
               if (selectedScanHit) {
-                // If a scan hit is selected, only show the line for that scan hit
+                // If a signal of change is selected, only show the line for that signal of change
                 lineOpacity = (scanHit.id || index) === (selectedScanHit.id || scanHits.findIndex(hit => hit.id === selectedScanHit.id)) ? 0.7 : 0.1;
               }
               
@@ -1111,15 +1126,15 @@ function RadialScanChart() {
             })}
           </g>
 
-          {/* Colored arc segments - show which domains each scan hit belongs to */}
+          {/* Colored arc segments - show which domains each signal of change belongs to */}
           <g id="domain-segments">
             {scanHits.map((scanHit, index) => {
-              // Calculate the angle and width for this scan hit
+              // Calculate the angle and width for this signal of change
               const anglePerHit = 360 / scanHits.length;
               const startAngle = (index / scanHits.length) * 360;
               const endAngle = startAngle + anglePerHit;
               
-              // Create a segment for each domain this scan hit belongs to
+              // Create a segment for each domain this signal of change belongs to
               return scanHit.domains.map((domainId) => {
                 // Get the radius for this domain
                 const domainRadius = CONFIG.domainRadii[domainId];
@@ -1141,7 +1156,7 @@ function RadialScanChart() {
                 let opacity = 0.6; // Semi-transparent by default
                 
                 if (selectedScanHit) {
-                  // If a scan hit is selected, only show segments for that specific scan hit
+                  // If a signal of change is selected, only show segments for that specific signal of change
                   opacity = (scanHit.id || index) === (selectedScanHit.id || scanHits.findIndex(hit => hit.id === selectedScanHit.id)) ? 1.0 : 0.1;
                 } else if (selectedDomain) {
                   // Show segments for the selected domain ring at full opacity
@@ -1213,8 +1228,8 @@ function RadialScanChart() {
             })}
           </g>
 
-          {/* Scan hit labels around the outer perimeter */}
-          <g id="scan-hit-labels">
+          {/* Signal of change labels around the outer perimeter */}
+          <g id="signal-labels">
             {scanHits.map((scanHit, index) => {
               // Step 1: Calculate angle for segment center (not start)
               const anglePerHit = 360 / scanHits.length;
@@ -1255,17 +1270,17 @@ function RadialScanChart() {
               let fillColor = "#4B5563";
               
               if (selectedScanHit) {
-                // If a scan hit is selected, dim all other scan hits
+                // If a signal of change is selected, dim all other signals of change
                 opacity = (scanHit.id || index) === (selectedScanHit.id || scanHits.findIndex(hit => hit.id === selectedScanHit.id)) ? 1.0 : 0.2;
               } else if (selectedDomain) {
-                // If a domain is selected, only show labels for scan hits that belong to that domain
+                // If a domain is selected, only show labels for signals of change that belong to that domain
                 opacity = scanHit.domains.includes(selectedDomain) ? 1.0 : 0.2;
               }
               
-              // Check if this scan hit is focused
+              // Check if this signal of change is focused
               const isFocused = focusedScanHit === (scanHit.id || index);
               if (isFocused) {
-                fillColor = "#1D4ED8"; // Blue color for focused scan hit
+                fillColor = "#1D4ED8"; // Blue color for focused signal of change
                 opacity = 1.0;
               }
               
@@ -1296,12 +1311,115 @@ function RadialScanChart() {
                   }}
                   tabIndex={0}
                   role="button"
-                  aria-label={`Scan hit: ${truncatedTitle}${scanHit.domains.length > 1 ? ` (belongs to ${scanHit.domains.length} domains)` : ''}`}
+                  aria-label={`Signal of change: ${truncatedTitle}${scanHit.domains.length > 1 ? ` (belongs to ${scanHit.domains.length} domains)` : ''}`}
                   aria-pressed={isFocused}
                 >
                   {truncatedTitle}
                 </text>
               );
+            })}
+          </g>
+
+          {/* Participant-identified stars - positioned beyond signal labels */}
+          <g id="participant-stars">
+            {scanHits.map((scanHit, index) => {
+              if (!scanHit.participantIdentified) return null;
+              
+              // Get text element and its bounding box
+              const textElement = textRefs.current[`text-${index}`];
+              if (!textElement) return null;
+              
+              try {
+                const bbox = textElement.getBBox();
+                const textHalfWidth = bbox.width / 2;
+                
+                // Use the same positioning logic as signal labels
+                const anglePerHit = 360 / scanHits.length;
+                const segmentStartAngle = (index / scanHits.length) * 360;
+                const segmentCenterAngle = segmentStartAngle + (anglePerHit / 2);
+                
+                // Get signal position (same as text label position)
+                const signalPosition = labelPositions[index] || 
+                  polarToCartesian(
+                    CONFIG.centerX,
+                    CONFIG.centerY,
+                    (CONFIG.scanHitRadius + CONFIG.positioning.desiredGap) - CONFIG.positioning.baseOffset,
+                    segmentCenterAngle
+                  );
+                
+                // Get text rotation (same logic as text labels)
+                let rotation = segmentCenterAngle + 90;
+                while (rotation > 90) rotation -= 180;
+                while (rotation < -90) rotation += 180;
+                
+                // Calculate which direction along the rotation axis points OUTWARD
+                // by checking which end is farther from center
+                const rotationRad = (rotation * Math.PI) / 180;
+                
+                // Two possible ends of the text
+                const end1 = {
+                  x: signalPosition.x + textHalfWidth * Math.cos(rotationRad),
+                  y: signalPosition.y + textHalfWidth * Math.sin(rotationRad)
+                };
+                const end2 = {
+                  x: signalPosition.x - textHalfWidth * Math.cos(rotationRad),
+                  y: signalPosition.y - textHalfWidth * Math.sin(rotationRad)
+                };
+                
+                // Calculate distances from chart center
+                const dist1 = Math.sqrt((end1.x - CONFIG.centerX)**2 + (end1.y - CONFIG.centerY)**2);
+                const dist2 = Math.sqrt((end2.x - CONFIG.centerX)**2 + (end2.y - CONFIG.centerY)**2);
+                
+                // Choose the end that's farther from center (the outer end)
+                const outerEnd = dist1 > dist2 ? end1 : end2;
+                const direction = dist1 > dist2 ? 1 : -1;
+                
+                // Star position: 60px beyond the outer end
+                const starPosition = {
+                  x: outerEnd.x + direction * 60 * Math.cos(rotationRad),
+                  y: outerEnd.y + direction * 60 * Math.sin(rotationRad)
+                };
+                
+                // Determine opacity based on selection
+                let opacity = 1.0;
+                if (selectedScanHit) {
+                  opacity = (scanHit.id || index) === (selectedScanHit.id || scanHits.findIndex(hit => hit.id === selectedScanHit.id)) ? 1.0 : 0.2;
+                } else if (selectedDomain) {
+                  opacity = scanHit.domains.includes(selectedDomain) ? 1.0 : 0.2;
+                }
+                
+                return (
+                  <g key={`star-${scanHit.id || index}`} opacity={opacity} className="transition-opacity duration-200">
+                    {/* Star shadow for depth */}
+                    <path
+                      d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"
+                      fill="#B8860B"
+                      transform={`translate(${starPosition.x - 12}, ${starPosition.y - 11.5}) scale(3)`}
+                      opacity="0.4"
+                    />
+                    {/* Main star */}
+                    <path
+                      d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"
+                      fill="#FFD700"
+                      transform={`translate(${starPosition.x - 12}, ${starPosition.y - 11.5}) scale(2.5)`}
+                      className="drop-shadow-lg"
+                      stroke="#FFA500"
+                      strokeWidth="1"
+                    />
+                    {/* Inner highlight */}
+                    <path
+                      d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"
+                      fill="#FFF8DC"
+                      transform={`translate(${starPosition.x - 12}, ${starPosition.y - 11.5}) scale(1.2)`}
+                      opacity="0.9"
+                    />
+                  </g>
+                );
+              } catch (error) {
+                // If bbox calculation fails, don't render star
+                console.warn(`Failed to calculate star position for signal ${index}:`, error);
+                return null;
+              }
             })}
           </g>
 
@@ -1343,7 +1461,7 @@ function RadialScanChart() {
             let opacity = 1.0;
             
             if (selectedScanHit) {
-              // If a scan hit is selected, check if this domain is associated with it
+              // If a signal of change is selected, check if this domain is associated with it
               const isAssociatedDomain = selectedScanHit.domains && selectedScanHit.domains.includes(domain.id);
               opacity = isAssociatedDomain ? 1.0 : 0.2;
             } else if (isSelected) {
@@ -1449,7 +1567,7 @@ function RadialScanChart() {
           aria-live="polite"
           aria-label={`Domain filter applied`}
         >
-          Showing scan hits for: <strong>{selectedDomainLabel}</strong>
+          Showing signals of change for: <strong>{selectedDomainLabel}</strong>
         </div>
       )}
       
@@ -1507,7 +1625,7 @@ function RadialScanChart() {
             {/* Scrollable Content */}
             <div className="p-6 overflow-y-auto h-[calc(100vh-120px)]">
               {selectedScanHit ? (
-                // Scan Hit Details Content
+                // Signal of Change Details Content
                 <>
                   {/* Associated Domains */}
                   {selectedScanHit.domains && selectedScanHit.domains.length > 0 && (
@@ -1543,14 +1661,6 @@ function RadialScanChart() {
                       >
                         {selectedScanHit.steepCategory}
                       </span>
-                    </div>
-                  )}
-
-                  {/* Date */}
-                  {selectedScanHit.date && (
-                    <div className="mb-6">
-                      <h3 className="text-lg font-semibold text-gray-700 mb-2">Horizon</h3>
-                      <p className="text-gray-600">{selectedScanHit.date}</p>
                     </div>
                   )}
 
@@ -1602,12 +1712,22 @@ function RadialScanChart() {
                         </p>
                       </div>
 
-                      {/* Scan Hit Count */}
+                      {/* Futures Context */}
                       <div className="mb-6">
-                        <h3 className="text-lg font-semibold text-gray-700 mb-3">Scan Hits</h3>
+                        <h3 className="text-lg font-semibold text-gray-700 mb-3">Futures of Education in Africa</h3>
+                        <div className="bg-green-50 p-4 rounded-lg border-l-4 border-green-400">
+                          <p className="text-gray-700 leading-relaxed">
+                            {domain?.futuresContext}
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Signals of Change Count */}
+                      <div className="mb-6">
+                        <h3 className="text-lg font-semibold text-gray-700 mb-3">Signals of Change</h3>
                         <div className="bg-blue-50 p-4 rounded-lg">
                           <p className="text-2xl font-bold text-blue-800 mb-1">{domainScanHits.length}</p>
-                          <p className="text-sm text-blue-600">scan hits in this domain</p>
+                          <p className="text-sm text-blue-600">signals of change in this domain</p>
                         </div>
                       </div>
 
@@ -1632,15 +1752,6 @@ function RadialScanChart() {
                         </div>
                       )}
 
-                      {/* Futures Context */}
-                      <div className="mb-6">
-                        <h3 className="text-lg font-semibold text-gray-700 mb-3">Futures of Education in Africa</h3>
-                        <div className="bg-green-50 p-4 rounded-lg border-l-4 border-green-400">
-                          <p className="text-gray-700 leading-relaxed">
-                            {domain?.futuresContext}
-                          </p>
-                        </div>
-                      </div>
                     </>
                   );
                 })()
@@ -1650,18 +1761,18 @@ function RadialScanChart() {
                   <div className="mb-6">
                     <h3 className="text-lg font-semibold text-gray-700 mb-3">Overview</h3>
                     <p className="text-gray-600 leading-relaxed mb-4">
-                      This interactive radar visualization presents key insights from UNICEF's Future Fellows Scanning initiative, 
-                      exploring emerging trends and potential futures of education across Africa. The visualization maps scan hits 
+                      This interactive radar visualization presents key insights from UNICEF's Youth Foresight Fellows Scanning initiative, 
+                      exploring emerging trends and potential futures of education across Africa. The visualization maps signals of change 
                       across seven critical education domains, categorized by STEEP analysis (Social, Technological, Economic, 
                       Environmental, Political & Legal factors).
                     </p>
                   </div>
 
                   <div className="mb-6">
-                    <h3 className="text-lg font-semibold text-gray-700 mb-3">Scan Hits Overview</h3>
+                    <h3 className="text-lg font-semibold text-gray-700 mb-3">Signals of Change Overview</h3>
                     <div className="bg-blue-50 p-4 rounded-lg">
                       <p className="text-2xl font-bold text-blue-800 mb-1">{scanHits.length}</p>
-                      <p className="text-sm text-blue-600">scan hits selected from a total of 141 scan hits submitted by Futures Fellows</p>
+                      <p className="text-sm text-blue-600">signals of change selected from a total of 141 signals of change submitted by Youth Foresight Fellows</p>
                     </div>
                   </div>
 
@@ -1670,11 +1781,11 @@ function RadialScanChart() {
                     <ul className="text-gray-600 space-y-2">
                       <li className="flex items-start gap-2">
                         <span className="text-blue-600 font-bold">•</span>
-                        <span><strong>Click domain rings</strong> to filter scan hits and learn about each education domain</span>
+                        <span><strong>Click domain rings</strong> to filter signals of change and learn about each education domain</span>
                       </li>
                       <li className="flex items-start gap-2">
                         <span className="text-blue-600 font-bold">•</span>
-                        <span><strong>Click scan hit labels</strong> to view detailed information about specific trends</span>
+                        <span><strong>Click signal of change labels</strong> to view detailed information about specific trends</span>
                       </li>
                       <li className="flex items-start gap-2">
                         <span className="text-blue-600 font-bold">•</span>
@@ -1694,7 +1805,7 @@ function RadialScanChart() {
                         Futures thinking recognizes that the future is not predetermined but shaped by our choices today. 
                         By exploring multiple potential futures of education in Africa, we can better prepare for uncertainty, 
                         identify opportunities for positive change, and make more informed decisions about educational policy 
-                        and practice. Each scan hit represents a signal of change that could influence how education evolves 
+                        and practice. Each signal of change represents an emerging trend that could influence how education evolves 
                         across the continent.
                       </p>
                     </div>
@@ -1749,11 +1860,11 @@ function RadialScanChart() {
                   </li>
                   <li className="flex items-start gap-2">
                     <span className="text-blue-600 font-bold">•</span>
-                    <span><strong>Click domain rings:</strong> Filter scan hits by domain</span>
+                    <span><strong>Click domain rings:</strong> Filter signals of change by domain</span>
                   </li>
                   <li className="flex items-start gap-2">
                     <span className="text-blue-600 font-bold">•</span>
-                    <span><strong>Click scan hit labels:</strong> View detailed information</span>
+                    <span><strong>Click signal of change labels:</strong> View detailed information</span>
                   </li>
                 </ul>
               </div>
@@ -1777,7 +1888,7 @@ function RadialScanChart() {
                   </li>
                   <li className="flex items-start gap-2">
                     <span className="text-blue-600 font-bold">•</span>
-                    <span><strong>Tap:</strong> Select domains or scan hits</span>
+                    <span><strong>Tap:</strong> Select domains or signals of change</span>
                   </li>
                 </ul>
               </div>
