@@ -383,6 +383,8 @@ function RadialScanChart() {
   const [selectedDomain, setSelectedDomain] = useState(null);
   const [focusedScanHit, setFocusedScanHit] = useState(null);
   const [selectedScanHit, setSelectedScanHit] = useState(null);
+  const [selectedSteepCategory, setSelectedSteepCategory] = useState(null);
+  const [showParticipantIdentifiedOnly, setShowParticipantIdentifiedOnly] = useState(false);
   const [hasInitiallyLoaded, setHasInitiallyLoaded] = useState(false);
   const [showDefaultModal, setShowDefaultModal] = useState(false);
   const [showModalPanel, setShowModalPanel] = useState(false); // Controls modal panel visibility independently
@@ -446,6 +448,8 @@ function RadialScanChart() {
     setSelectedDomain(null);
     setSelectedScanHit(null);
     setFocusedScanHit(null);
+    setSelectedSteepCategory(null);
+    setShowParticipantIdentifiedOnly(false);
     setShowModalPanel(false);
   }, []);
 
@@ -515,6 +519,43 @@ function RadialScanChart() {
     // Track analytics
     trackScanHitClick(scanHitId, scanHit.title, scanHit.domains);
   }, [trackScanHitClick, selectedScanHit, debugLog]);
+
+  const handleSteepCategoryClick = useCallback((category) => {
+    debugLog('STEEP category clicked', { 
+      category,
+      previousCategory: selectedSteepCategory 
+    });
+    
+    // Clear other selections
+    setSelectedDomain(null);
+    setSelectedScanHit(null);
+    setFocusedScanHit(null);
+    setShowParticipantIdentifiedOnly(false);
+    
+    // Toggle STEEP category selection
+    setSelectedSteepCategory(prev => prev === category ? null : category);
+    
+    // Open modal panel to show STEEP category information
+    setShowModalPanel(true);
+  }, [selectedSteepCategory, debugLog]);
+
+  const handleParticipantIdentifiedClick = useCallback(() => {
+    debugLog('Participant-identified filter clicked', { 
+      previousState: showParticipantIdentifiedOnly 
+    });
+    
+    // Clear other selections
+    setSelectedDomain(null);
+    setSelectedScanHit(null);
+    setFocusedScanHit(null);
+    setSelectedSteepCategory(null);
+    
+    // Toggle participant-identified filter
+    setShowParticipantIdentifiedOnly(prev => !prev);
+    
+    // Open modal panel to show participant-identified information
+    setShowModalPanel(true);
+  }, [showParticipantIdentifiedOnly, debugLog]);
 
   // Panel resize handlers
   const handleResizeStart = useCallback((e) => {
@@ -894,21 +935,41 @@ function RadialScanChart() {
             STEEP Categories
           </h3>
           <div className="space-y-2 lg:space-y-3">
-            {Object.entries(STEEP_COLORS).map(([category, color]) => (
-              <div key={category} className="flex items-center gap-2 lg:gap-3">
-                <div 
-                  className="w-4 h-4 lg:w-6 lg:h-6 rounded-full border border-gray-300 flex-shrink-0"
-                  style={{ backgroundColor: color }}
-                  aria-hidden="true"
-                />
-                <span className="text-xs lg:text-sm text-gray-600 font-medium">{category}</span>
-              </div>
-            ))}
+            {Object.entries(STEEP_COLORS).map(([category, color]) => {
+              const isSelected = selectedSteepCategory === category;
+              const isOtherSelected = (selectedSteepCategory && selectedSteepCategory !== category) || selectedDomain || showParticipantIdentifiedOnly;
+              
+              return (
+                <button
+                  key={category}
+                  onClick={() => handleSteepCategoryClick(category)}
+                  className={`flex items-center gap-2 lg:gap-3 w-full text-left p-2 rounded-lg transition-all duration-200 cursor-pointer hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                    isSelected ? 'bg-blue-50 ring-2 ring-blue-400' : isOtherSelected ? 'opacity-40' : ''
+                  }`}
+                  aria-label={`Filter by ${category} category`}
+                  aria-pressed={isSelected}
+                >
+                  <div 
+                    className="w-4 h-4 lg:w-6 lg:h-6 rounded-full border border-gray-300 flex-shrink-0"
+                    style={{ backgroundColor: color }}
+                    aria-hidden="true"
+                  />
+                  <span className="text-xs lg:text-sm text-gray-600 font-medium">{category}</span>
+                </button>
+              );
+            })}
           </div>
           
           {/* Participant-identified stars legend */}
           <div className="mt-4 lg:mt-6 pt-3 lg:pt-4 border-t border-gray-200">
-            <div className="flex items-center gap-2 lg:gap-3">
+            <button
+              onClick={handleParticipantIdentifiedClick}
+              className={`flex items-center gap-2 lg:gap-3 w-full text-left p-2 rounded-lg transition-all duration-200 cursor-pointer hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500 ${
+                showParticipantIdentifiedOnly ? 'bg-blue-50 ring-2 ring-blue-400' : (selectedSteepCategory || selectedDomain) ? 'opacity-40' : ''
+              }`}
+              aria-label="Filter by participant-identified signals"
+              aria-pressed={showParticipantIdentifiedOnly}
+            >
               <svg width="16" height="16" viewBox="0 0 24 24" className="text-yellow-500 flex-shrink-0 lg:w-5 lg:h-5">
                 <path 
                   d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" 
@@ -916,7 +977,7 @@ function RadialScanChart() {
                 />
               </svg>
               <span className="text-xs lg:text-sm text-gray-600 font-medium">Participant-identified signals</span>
-            </div>
+            </button>
           </div>
         </div>
         
@@ -925,11 +986,11 @@ function RadialScanChart() {
           {/* Zoom controls - positioned relative to chart container */}
           <div className="absolute top-2 right-2 z-10 flex gap-1 sm:gap-2 items-center">
             {/* Clear Selection Button */}
-            {selectedDomain && (
+            {(selectedDomain || selectedSteepCategory || showParticipantIdentifiedOnly) && (
               <button
                 onClick={clearSelection}
                 className="bg-gray-700 hover:bg-gray-800 text-white px-2 py-1 sm:px-3 sm:py-2 rounded-lg transition-colors duration-200 text-xs sm:text-sm font-medium focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2"
-                aria-label={`Clear selection of ${selectedDomainLabel} domain`}
+                aria-label={`Clear selection${selectedDomainLabel ? ` of ${selectedDomainLabel} domain` : selectedSteepCategory ? ` of ${selectedSteepCategory} category` : showParticipantIdentifiedOnly ? ' of participant-identified filter' : ''}`}
               >
                 Clear
               </button>
@@ -1119,6 +1180,15 @@ function RadialScanChart() {
               if (selectedScanHit) {
                 // If a signal of change is selected, only show the line for that signal of change
                 lineOpacity = (scanHit.id || index) === (selectedScanHit.id || scanHits.findIndex(hit => hit.id === selectedScanHit.id)) ? 0.7 : 0.1;
+              } else if (selectedSteepCategory) {
+                // If a STEEP category is selected, only show lines for signals of change that belong to that category
+                lineOpacity = scanHit.steepCategory === selectedSteepCategory ? 0.7 : 0.1;
+              } else if (showParticipantIdentifiedOnly) {
+                // If participant-identified filter is active, only show participant-identified signals
+                lineOpacity = scanHit.participantIdentified ? 0.7 : 0.1;
+              } else if (selectedDomain) {
+                // If a domain is selected, only show lines for signals of change that belong to that domain
+                lineOpacity = scanHit.domains.includes(selectedDomain) ? 0.7 : 0.1;
               }
               
               return (
@@ -1169,6 +1239,12 @@ function RadialScanChart() {
                 if (selectedScanHit) {
                   // If a signal of change is selected, only show segments for that specific signal of change
                   opacity = (scanHit.id || index) === (selectedScanHit.id || scanHits.findIndex(hit => hit.id === selectedScanHit.id)) ? 1.0 : 0.1;
+                } else if (selectedSteepCategory) {
+                  // Show segments for the selected STEEP category at full opacity
+                  opacity = scanHit.steepCategory === selectedSteepCategory ? 1.0 : 0.1;
+                } else if (showParticipantIdentifiedOnly) {
+                  // Show segments for participant-identified signals at full opacity
+                  opacity = scanHit.participantIdentified ? 1.0 : 0.1;
                 } else if (selectedDomain) {
                   // Show segments for the selected domain ring at full opacity
                   // Dim segments for other domain rings
@@ -1283,6 +1359,12 @@ function RadialScanChart() {
               if (selectedScanHit) {
                 // If a signal of change is selected, dim all other signals of change
                 opacity = (scanHit.id || index) === (selectedScanHit.id || scanHits.findIndex(hit => hit.id === selectedScanHit.id)) ? 1.0 : 0.2;
+              } else if (selectedSteepCategory) {
+                // If a STEEP category is selected, only show labels for signals of change that belong to that category
+                opacity = scanHit.steepCategory === selectedSteepCategory ? 1.0 : 0.2;
+              } else if (showParticipantIdentifiedOnly) {
+                // If participant-identified filter is active, only show participant-identified signals
+                opacity = scanHit.participantIdentified ? 1.0 : 0.2;
               } else if (selectedDomain) {
                 // If a domain is selected, only show labels for signals of change that belong to that domain
                 opacity = scanHit.domains.includes(selectedDomain) ? 1.0 : 0.2;
@@ -1398,6 +1480,7 @@ function RadialScanChart() {
               }
             }
             
+            
             // Split long labels into multiple lines
             const splitLabel = domain.label.split(' ');
             const midPoint = Math.ceil(splitLabel.length / 2);
@@ -1414,6 +1497,18 @@ function RadialScanChart() {
               // If a signal of change is selected, check if this domain is associated with it
               const isAssociatedDomain = selectedScanHit.domains && selectedScanHit.domains.includes(domain.id);
               opacity = isAssociatedDomain ? 1.0 : 0.2;
+            } else if (selectedSteepCategory) {
+              // If a STEEP category is selected, check if this domain has signals in that category
+              const hasCategorySignals = scanHits.some(hit => 
+                hit.steepCategory === selectedSteepCategory && hit.domains.includes(domain.id)
+              );
+              opacity = hasCategorySignals ? 1.0 : 0.2;
+            } else if (showParticipantIdentifiedOnly) {
+              // If participant filter is active, check if this domain has participant-identified signals
+              const hasParticipantSignals = scanHits.some(hit => 
+                hit.participantIdentified && hit.domains.includes(domain.id)
+              );
+              opacity = hasParticipantSignals ? 1.0 : 0.2;
             } else if (isSelected) {
               opacity = 1.0;
             } else if (isOtherSelected) {
@@ -1527,8 +1622,30 @@ function RadialScanChart() {
           </div>
         )}
         
+        {selectedSteepCategory && (
+          <div 
+            className="mb-4 p-3 sm:p-4 bg-purple-100 rounded-md text-center text-xs sm:text-sm text-purple-800 font-medium"
+            role="status"
+            aria-live="polite"
+            aria-label={`STEEP category filter applied`}
+          >
+            Showing signals of change for: <strong>{selectedSteepCategory}</strong> category
+          </div>
+        )}
+        
+        {showParticipantIdentifiedOnly && (
+          <div 
+            className="mb-4 p-3 sm:p-4 bg-yellow-100 rounded-md text-center text-xs sm:text-sm text-yellow-800 font-medium"
+            role="status"
+            aria-live="polite"
+            aria-label={`Participant-identified filter applied`}
+          >
+            Showing <strong>participant-identified</strong> signals of change only
+          </div>
+        )}
+        
         <div className="min-h-[3rem] sm:min-h-[3.5rem] flex items-center justify-center transition-all duration-200">
-          {hoveredDomainLabel && !selectedDomain && (
+          {hoveredDomainLabel && !selectedDomain && !selectedSteepCategory && !showParticipantIdentifiedOnly && (
             <div 
               className="p-3 sm:p-4 bg-gray-200 rounded-md text-center text-xs sm:text-sm text-gray-700 font-medium"
               role="status"
@@ -1542,7 +1659,7 @@ function RadialScanChart() {
       </div>
 
       {/* Information Modal - Side Panel */}
-      {showModalPanel && (selectedScanHit || selectedDomain || showDefaultModal) && (
+      {showModalPanel && (selectedScanHit || selectedDomain || selectedSteepCategory || showParticipantIdentifiedOnly || showDefaultModal) && (
         <div className="fixed inset-0 z-50 pointer-events-none">
           {/* Modal Content - Full screen on mobile, right panel on desktop */}
           <div 
@@ -1566,6 +1683,8 @@ function RadialScanChart() {
               <h2 className="text-lg sm:text-xl lg:text-2xl font-semibold text-gray-900 pr-4 sm:pr-8 leading-tight">
                 {selectedScanHit ? selectedScanHit.title : 
                  selectedDomain ? DOMAIN_LABELS.find(d => d.id === selectedDomain)?.label :
+                 selectedSteepCategory ? `${selectedSteepCategory} Category` :
+                 showParticipantIdentifiedOnly ? 'Participant-Identified Signals' :
                  'About the Futures of Education in Africa'}
               </h2>
               <button
@@ -1648,6 +1767,176 @@ function RadialScanChart() {
                     </div>
                   )}
                 </>
+              ) : selectedSteepCategory ? (
+                // STEEP Category Information Content
+                (() => {
+                  const categoryScanHits = scanHits.filter(hit => hit.steepCategory === selectedSteepCategory);
+                  const domainBreakdown = categoryScanHits.reduce((acc, hit) => {
+                    hit.domains.forEach(domainId => {
+                      acc[domainId] = (acc[domainId] || 0) + 1;
+                    });
+                    return acc;
+                  }, {});
+                  const participantCount = categoryScanHits.filter(hit => hit.participantIdentified).length;
+
+                  return (
+                    <>
+                      {/* Category Overview */}
+                      <div className="mb-6">
+                        <h3 className="text-lg font-semibold text-gray-700 mb-3">Category Overview</h3>
+                        <div 
+                          className="p-4 rounded-lg border-l-4"
+                          style={{ 
+                            backgroundColor: getSteepColor(selectedSteepCategory) + '20',
+                            borderColor: getSteepColor(selectedSteepCategory)
+                          }}
+                        >
+                          <p className="text-gray-700 leading-relaxed">
+                            This category represents <strong>{selectedSteepCategory}</strong> signals of change in the futures of African education.
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Signals of Change Count */}
+                      <div className="mb-6">
+                        <h3 className="text-lg font-semibold text-gray-700 mb-3">Signals of Change</h3>
+                        <div className="bg-blue-50 p-4 rounded-lg">
+                          <p className="text-2xl font-bold text-blue-800 mb-1">{categoryScanHits.length}</p>
+                          <p className="text-sm text-blue-600">signals of change in this category</p>
+                        </div>
+                      </div>
+
+                      {/* Participant-identified count */}
+                      {participantCount > 0 && (
+                        <div className="mb-6">
+                          <div className="bg-yellow-50 p-4 rounded-lg flex items-center gap-3">
+                            <svg width="24" height="24" viewBox="0 0 24 24" className="text-yellow-500 flex-shrink-0">
+                              <path 
+                                d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" 
+                                fill="currentColor"
+                              />
+                            </svg>
+                            <div>
+                              <p className="text-lg font-bold text-yellow-800">{participantCount}</p>
+                              <p className="text-sm text-yellow-700">participant-identified signals</p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Domain Distribution */}
+                      {Object.keys(domainBreakdown).length > 0 && (
+                        <div className="mb-6">
+                          <h3 className="text-lg font-semibold text-gray-700 mb-3">Domain Distribution</h3>
+                          <div className="space-y-2">
+                            {Object.entries(domainBreakdown)
+                              .sort(([, a], [, b]) => b - a)
+                              .map(([domainId, count]) => {
+                                const domainLabel = DOMAIN_LABELS.find(d => d.id === domainId)?.label;
+                                return (
+                                  <div key={domainId} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                                    <span className="text-gray-700 font-medium">{domainLabel}</span>
+                                    <span className="text-gray-600 font-semibold">{count}</span>
+                                  </div>
+                                );
+                              })}
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  );
+                })()
+              ) : showParticipantIdentifiedOnly ? (
+                // Participant-Identified Signals Content
+                (() => {
+                  const participantScanHits = scanHits.filter(hit => hit.participantIdentified);
+                  const steepBreakdown = participantScanHits.reduce((acc, hit) => {
+                    const category = hit.steepCategory || 'Unknown';
+                    acc[category] = (acc[category] || 0) + 1;
+                    return acc;
+                  }, {});
+                  const domainBreakdown = participantScanHits.reduce((acc, hit) => {
+                    hit.domains.forEach(domainId => {
+                      acc[domainId] = (acc[domainId] || 0) + 1;
+                    });
+                    return acc;
+                  }, {});
+
+                  return (
+                    <>
+                      {/* Overview */}
+                      <div className="mb-6">
+                        <h3 className="text-lg font-semibold text-gray-700 mb-3">Overview</h3>
+                        <div className="bg-yellow-50 p-4 rounded-lg border-l-4 border-yellow-400">
+                          <p className="text-gray-700 leading-relaxed">
+                            These signals of change were identified by Youth Foresight Fellows during the participatory scanning process, 
+                            representing insights directly from young people across Africa about the futures of education.
+                          </p>
+                        </div>
+                      </div>
+
+                      {/* Signals Count */}
+                      <div className="mb-6">
+                        <h3 className="text-lg font-semibold text-gray-700 mb-3">Participant-Identified Signals</h3>
+                        <div className="bg-blue-50 p-4 rounded-lg flex items-center gap-3">
+                          <svg width="32" height="32" viewBox="0 0 24 24" className="text-yellow-500 flex-shrink-0">
+                            <path 
+                              d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" 
+                              fill="currentColor"
+                            />
+                          </svg>
+                          <div>
+                            <p className="text-2xl font-bold text-blue-800">{participantScanHits.length}</p>
+                            <p className="text-sm text-blue-600">signals identified by participants</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* STEEP Category Breakdown */}
+                      {Object.keys(steepBreakdown).length > 0 && (
+                        <div className="mb-6">
+                          <h3 className="text-lg font-semibold text-gray-700 mb-3">STEEP Category Distribution</h3>
+                          <div className="space-y-2">
+                            {Object.entries(steepBreakdown)
+                              .sort(([, a], [, b]) => b - a)
+                              .map(([category, count]) => (
+                                <div key={category} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                                  <div className="flex items-center gap-3">
+                                    <div 
+                                      className="w-4 h-4 rounded-full"
+                                      style={{ backgroundColor: getSteepColor(category) }}
+                                    />
+                                    <span className="text-gray-700 font-medium">{category}</span>
+                                  </div>
+                                  <span className="text-gray-600 font-semibold">{count}</span>
+                                </div>
+                              ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Domain Distribution */}
+                      {Object.keys(domainBreakdown).length > 0 && (
+                        <div className="mb-6">
+                          <h3 className="text-lg font-semibold text-gray-700 mb-3">Domain Distribution</h3>
+                          <div className="space-y-2">
+                            {Object.entries(domainBreakdown)
+                              .sort(([, a], [, b]) => b - a)
+                              .map(([domainId, count]) => {
+                                const domainLabel = DOMAIN_LABELS.find(d => d.id === domainId)?.label;
+                                return (
+                                  <div key={domainId} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                                    <span className="text-gray-700 font-medium">{domainLabel}</span>
+                                    <span className="text-gray-600 font-semibold">{count}</span>
+                                  </div>
+                                );
+                              })}
+                          </div>
+                        </div>
+                      )}
+                    </>
+                  );
+                })()
               ) : selectedDomain ? (
                 // Domain Information Content
                 (() => {
