@@ -1117,6 +1117,7 @@ function RadialScanChart() {
             y={CONFIG.centerY - 300}
             width={600}
             height={600}
+            style={{ filter: 'grayscale(100%)' }}
             className="transition-all duration-300 cursor-pointer hover:opacity-80"
             role="img"
             aria-label="Map of Africa silhouette"
