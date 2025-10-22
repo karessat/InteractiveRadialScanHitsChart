@@ -9,6 +9,13 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="description" content="Interactive radial visualization of UNICEF Youth Foresight Fellows education scanning highlights for Africa" />
     <title>Interactive Radial Signals of Change Chart</title>
+    
+    <!-- Force HTTPS redirect in production -->
+    <script>
+      if (window.location.protocol === 'http:' && window.location.hostname !== 'localhost') {
+        window.location.href = window.location.href.replace('http:', 'https:');
+      }
+    </script>
   </head>
   <body>
     <div id="root"></div>
