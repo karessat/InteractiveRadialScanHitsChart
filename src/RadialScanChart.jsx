@@ -321,6 +321,19 @@ const fetchScanHits = async () => {
 };
 
 /**
+ * Cleans text by removing multiple consecutive spaces and normalizing whitespace
+ * @param {string} text - Text to clean
+ * @returns {string} Cleaned text with single spaces
+ */
+const cleanText = (text) => {
+  if (!text || typeof text !== 'string') return text;
+  
+  // Replace multiple consecutive spaces (2 or more) with single space
+  // Also trim leading/trailing whitespace
+  return text.trim().replace(/\s{2,}/g, ' ');
+};
+
+/**
  * Transforms raw AITable records into structured signal of change objects
  * @param {Array} records - Raw records from AITable
  * @returns {Array} Array of transformed signal of change objects
@@ -348,13 +361,13 @@ const transformData = (records) => {
     
     return {
       id: record.fields['ID'],
-      title: record.fields['Title'],
-      description: record.fields['English Description'],
+      title: cleanText(record.fields['Title']),
+      description: cleanText(record.fields['English Description']),
       domains: domains,
       date: record.fields['Horizon'],
       source: record.fields['Link'],
       recNumber: record.fields['RecNumber'],
-      steepCategory: record.fields['STEEP Category'],
+      steepCategory: cleanText(record.fields['STEEP Category']),
       participantIdentified: record.fields['Participant Identified'] || false,
     };
   });
@@ -2005,20 +2018,23 @@ function RadialScanChart() {
                 // Default About Content
                 <>
                   <div className="mb-6">
+                    <h3 className="text-lg font-semibold text-gray-700 mb-3">Youth Foresight Radar: Signals Shaping the Future of Education</h3>
+                    <p className="text-sm text-gray-500 mb-4">An interactive mapping of signals of change identified by young people across Africa and the world.</p>
+                  </div>
+
+                  <div className="mb-6">
                     <h3 className="text-lg font-semibold text-gray-700 mb-3">Overview</h3>
                     <p className="text-gray-600 leading-relaxed mb-4">
-                      This interactive radar visualization presents key insights from UNICEF's Youth Foresight Fellows Scanning initiative, 
-                      exploring emerging trends and potential futures of education across Africa. The visualization maps signals of change 
-                      across seven critical education domains, categorized by STEEP analysis (Social, Technological, Economic, 
-                      Environmental, Political & Legal factors).
+                      This interactive radar showcases signals of change identified by young people that could greatly impact the future of education in Africa. In 2025, fifteen UNICEF Youth Foresight Fellows from around the world identified emerging issues they believe could transform how we learn, teach, and grow. Their collective insights reveal signals of change across seven vital education domains, explored through Social, Technological, Economic, Environmental, and Political and Legal (STEEP) perspectives.
                     </p>
                   </div>
 
                   <div className="mb-6">
-                    <h3 className="text-lg font-semibold text-gray-700 mb-3">Signals of Change Overview</h3>
+                    <h3 className="text-lg font-semibold text-gray-700 mb-3">Signals of Change for Africa</h3>
                     <div className="bg-blue-50 p-4 rounded-lg">
-                      <p className="text-2xl font-bold text-blue-800 mb-1">{scanHits.length}</p>
-                      <p className="text-sm text-blue-600">signals of change selected from a total of 141 signals of change submitted by Youth Foresight Fellows</p>
+                      <p className="text-gray-600 leading-relaxed">
+                        From a global pool of 141 signals, 51 were selected for their particular relevance to Africa's educational futures. These signals originate from diverse contexts around the world but highlight trends, innovations, and disruptions that could significantly shape education across the continent.
+                      </p>
                     </div>
                   </div>
 
@@ -2027,34 +2043,32 @@ function RadialScanChart() {
                     <ul className="text-gray-600 space-y-2">
                       <li className="flex items-start gap-2">
                         <span className="text-blue-600 font-bold">•</span>
+                        <span>Refer to STEEP categories to understand the nature of each signal of change</span>
+                      </li>
+                      <li className="flex items-start gap-2">
+                        <span className="text-blue-600 font-bold">•</span>
                         <span><strong>Click domain rings</strong> to filter signals of change and learn about each education domain</span>
                       </li>
                       <li className="flex items-start gap-2">
                         <span className="text-blue-600 font-bold">•</span>
-                        <span><strong>Click signal of change labels</strong> to view detailed information about specific trends</span>
+                        <span><strong>Use zoom and pan controls</strong> to explore the radar in detail</span>
                       </li>
                       <li className="flex items-start gap-2">
                         <span className="text-blue-600 font-bold">•</span>
-                        <span><strong>Use zoom and pan controls</strong> to explore the visualization in detail</span>
+                        <span><strong>Click each signal of change</strong> to view detailed information about its potential impact on education</span>
                       </li>
                       <li className="flex items-start gap-2">
                         <span className="text-blue-600 font-bold">•</span>
-                        <span><strong>Refer to STEEP categories</strong> to understand the nature of each trend</span>
+                        <span>Review the signals of change labeled as <strong>"participant-identified signals"</strong> to see those that were prioritized by young workshop participants from Africa</span>
                       </li>
                     </ul>
                   </div>
 
                   <div className="mb-6">
-                    <h3 className="text-lg font-semibold text-gray-700 mb-3">About Futures Thinking</h3>
-                    <div className="bg-purple-50 p-4 rounded-lg border-l-4 border-purple-400">
-                      <p className="text-gray-700 leading-relaxed">
-                        Futures thinking recognizes that the future is not predetermined but shaped by our choices today. 
-                        By exploring multiple potential futures of education in Africa, we can better prepare for uncertainty, 
-                        identify opportunities for positive change, and make more informed decisions about educational policy 
-                        and practice. Each signal of change represents an emerging trend that could influence how education evolves 
-                        across the continent.
-                      </p>
-                    </div>
+                    <h3 className="text-lg font-semibold text-gray-700 mb-3">About Youth Foresight</h3>
+                    <p className="text-gray-600 leading-relaxed">
+                      Youth foresight is a systematic way of imagining alternative futures and informing decision making, with a particular focus on the perspectives and needs of children and young people. Youth foresight can be used in policymaking, planning and decision-making processes at the local, national and international levels to inform future strategies, programmes, and investments that will impact the lives of children and youth today and tomorrow. By exploring multiple potential futures of education in Africa, we can better prepare for uncertainty, identify opportunities for positive change, and make more informed decisions about educational policy and practice.
+                    </p>
                   </div>
                 </>
               )}
