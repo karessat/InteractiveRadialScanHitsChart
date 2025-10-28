@@ -442,9 +442,11 @@ function RadialScanChart() {
       previousDomain: selectedDomain 
     });
     
-    // Clear any focused signal of change and selected signal of change when clicking domain rings
+    // Clear any focused signal of change, selected signal of change, and legend selections when clicking domain rings
     setFocusedScanHit(null);
     setSelectedScanHit(null);
+    setSelectedSteepCategory(null);
+    setShowParticipantIdentifiedOnly(false);
     
     setSelectedDomain(prev => prev === domainId ? null : domainId);
     
@@ -522,8 +524,10 @@ function RadialScanChart() {
       domains: scanHit.domains 
     });
     
-    // Clear domain selection and set the selected signal of change to show in modal
+    // Clear domain selection, legend selections, and set the selected signal of change to show in modal
     setSelectedDomain(null);
+    setSelectedSteepCategory(null);
+    setShowParticipantIdentifiedOnly(false);
     setSelectedScanHit(scanHit);
     
     // Open modal panel to show scan hit details
@@ -1138,6 +1142,8 @@ function RadialScanChart() {
               e.stopPropagation();
               setSelectedScanHit(null);
               setSelectedDomain(null);
+              setSelectedSteepCategory(null);
+              setShowParticipantIdentifiedOnly(false);
               setShowDefaultModal(true);
               setShowModalPanel(true);
             }}
@@ -1147,6 +1153,8 @@ function RadialScanChart() {
                 e.stopPropagation();
                 setSelectedScanHit(null);
                 setSelectedDomain(null);
+                setSelectedSteepCategory(null);
+                setShowParticipantIdentifiedOnly(false);
                 setShowDefaultModal(true);
                 setShowModalPanel(true);
               }
@@ -1596,6 +1604,8 @@ function RadialScanChart() {
               e.stopPropagation();
               setSelectedScanHit(null);
               setSelectedDomain(null);
+              setSelectedSteepCategory(null);
+              setShowParticipantIdentifiedOnly(false);
               setShowDefaultModal(true);
               setShowModalPanel(true);
             }}
@@ -1605,6 +1615,8 @@ function RadialScanChart() {
                 e.stopPropagation();
                 setSelectedScanHit(null);
                 setSelectedDomain(null);
+                setSelectedSteepCategory(null);
+                setShowParticipantIdentifiedOnly(false);
                 setShowDefaultModal(true);
                 setShowModalPanel(true);
               }
